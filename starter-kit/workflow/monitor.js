@@ -780,10 +780,12 @@ function build(){
   s+=agG(a.id,st.label,selBox(cx-13,y-22,26,66)+standFront(cx,y,look(a.id),a.role,'#8f9bb0','cup').replace('class="sip"','class="sip" style="animation-delay:-'+(k*0.9)+'s"')
    +bubble(cx,y-18,st.txt,st.kind)+label(cx,y+40+(k%2)*20,a.id,shortOf(a,st,false),st.kind,62))});
  // ---- bàn của bạn, lối đi thảm đỏ chạy thẳng xuống
- {const cx=OWNER_X,L={hair:'#2d2d3a',skin:'#f5cfa6',style:'short',pants:'#3a3f5c'};
+ // Bạn đang đi một vòng văn phòng (lớp #pets): bàn để ghế trống, bong bóng đi theo người
+ NEED_N=need;
+ {const cx=OWNER_X,away=!!(CRIT.boss&&CRIT.boss.mode!=='desk');
   let o=RR(cx-17,46,34,38,4,'#4a3b6b',K(1))+RR(cx-15,48,30,3,1.5,'#6a5a95');
-  o+=standFront(cx,58,L,'boss','#2f6fe0','')+desk(cx-36,86,72,true)+laptopBack(cx,89)+cup(cx+20,80,true)+plantSmall(cx-25,92);
-  o+=RR(cx-15,100,30,11,2,'#3b2a20',K(.6))+T(cx,108.5,8,'#f2c14e','BẠN')+bubble(cx,28,need?'!'+need:'z',need?'bad':'idle');
+  o+=(away?chair(cx,62):standFront(cx,58,BOSS_L,'boss','#2f6fe0',''))+desk(cx-36,86,72,true)+laptopBack(cx,89)+cup(cx+20,80,!away)+plantSmall(cx-25,92);
+  o+=RR(cx-15,100,30,11,2,'#3b2a20',K(.6))+T(cx,108.5,8,'#f2c14e','BẠN')+(away?'':bubble(cx,28,need?'!'+need:'z',need?'bad':'idle'));
   s+='<g id="owner" tabindex="0" role="button" aria-label="'+esc(need?'Bàn của bạn: '+need+' việc chờ bạn':'Bàn của bạn: không có việc chờ')+'" style="cursor:pointer"><title>'+(need?need+' việc chờ bạn: bấm để xem':'Không có việc chờ bạn')+'</title>'+o+'</g>'}
  // ---- các dãy bàn
  blocks.forEach((b,bi)=>{
@@ -830,7 +832,7 @@ function build(){
  ow.addEventListener('click',toNeed);ow.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toNeed()}});
  const lg=$('#legend');lg.replaceChildren();
  lg.append(el('span',null,'Màn hình chạy code, tay gõ phím = đang làm · gõ ngón tay = có việc chờ (số trên bong bóng) · giơ tay "?" = đang chờ Master trả lời · bọ đỏ trên bàn = có lỗi Tester báo · Master đứng dậy quay lại giơ giấy "!" = chờ bạn · gật gù "z" = rảnh · bóng mờ "?" = ID chưa khai trong agents.txt'),
-  el('span',null,'Cửa mở = có việc chờ bạn · đồng hồ đứng, đèn tắt = watch.sh không chạy · rê chuột vào ai để xem chi tiết, bấm để mở · bấm bàn "BẠN" để tới mục Cần bạn · bấm vào chó, mèo, chuột để nghe chúng kêu'));
+  el('span',null,'Cửa mở = có việc chờ bạn · đồng hồ đứng, đèn tắt = watch.sh không chạy · rê chuột vào ai để xem chi tiết, bấm để mở · bấm bàn "BẠN" để tới mục Cần bạn · thỉnh thoảng bạn rời bàn đi một vòng văn phòng · bấm vào chó, mèo, chuột để nghe chúng kêu'));
  if(free.length>5)lg.append(el('span',null,'Rảnh, không hiện hết: '+free.slice(5).map(a=>a.id).join(', ')));
 }
 
@@ -841,6 +843,15 @@ function build(){
 // Lớp #pets riêng, không bị thay khi trang làm mới 3 giây.
 const XL=16,XR=OWNER_X,BASE_Y=124,q4=v=>Math.round(v/4)*4;
 let G=null,GSIG='',HOLE='',GUARD='',BED='',SPOT='';const CRIT={};
+// Bạn (chủ dự án) thỉnh thoảng rời bàn đi một vòng: dừng ở vài chỗ nói một câu, chó có khi lẽo đẽo theo, rồi về bàn
+const BOSS_L={hair:'#2d2d3a',skin:'#f5cfa6',style:'short',pants:'#3a3f5c'};
+const BOSS_SAY=['Cố lên!','Tốt lắm!','Đẹp đấy!','Hmm…','Nghỉ tí ☕','Ổn chứ?','Nhanh nào!'];
+const bossGap=()=>1200+Math.random()*1200; // 60–120 giây giữa hai vòng (nhịp 50ms)
+// Chỗ dừng kế tiếp: một điểm ngẫu nhiên không quá xa chỗ đang đứng, để một vòng chỉ mất chừng nửa phút tới một phút
+const nearNode=(a,max)=>{let best=null;for(let i=0;i<24;i++){const k=randNode(),e=dist(G.get(k),a);if(e>40&&e<=max)return k;if(!best||e<dist(G.get(best),a))best=k}return best};
+let NEED_N=0;
+// Bạn rời bàn hay về bàn: vẽ lại văn phòng ngay để bàn có (hay không có) người
+const setAway=()=>{if(S)build()};
 function makeGraph(segs){const g=new Map();
  segs.forEach(([x0,y0,x1,y1])=>{const n=Math.max(Math.abs(x1-x0),Math.abs(y1-y0))/4,sx=Math.sign(x1-x0)*4,sy=Math.sign(y1-y0)*4;let prev=null;
   for(let i=0;i<=n;i++){const x=x0+sx*i,y=y0+sy*i,id=x+','+y;if(!g.has(id))g.set(id,{x,y,nb:[]});
@@ -863,11 +874,15 @@ function setGraph(g,laneB){
   CRIT.dog={x:at(BED).x,y:at(BED).y,dir:1,path:[],mode:'sleep',pose:'sleep',wait:120,spd:1.5,odo:0,say:'',sayT:0,jump:0};
   CRIT.cat={x:c.x,y:c.y,dir:-1,path:[],mode:'roam',pose:'sit',wait:40,spd:1.3,odo:0,say:'',sayT:0,jump:0,re:0};
   CRIT.mouse={x:at(HOLE).x,y:at(HOLE).y,dir:-1,path:[],mode:'hide',pose:'walk',wait:90,spd:2.6,odo:0,say:'',sayT:0,jump:0,hidden:true,trips:0};
+  CRIT.boss={x:at(SPOT).x,y:at(SPOT).y,dir:1,path:[],mode:'desk',pose:'stand',wait:300,spd:1.8,odo:0,say:'',sayT:0,jump:0,stops:0,pause:0};
   return}
  // bố cục đổi (thêm, bớt dãy bàn): đặt từng con vào điểm gần nhất trên lối đi mới, đang ngủ thì ngủ tiếp
- Object.values(CRIT).forEach(a=>{const n=at(nodeAt(a.x,a.y));a.x=n.x;a.y=n.y;a.path=[];if(a.mode!=='sleep'&&a.mode!=='nap'&&a.mode!=='hide')a.mode='roam';a.wait=10});
+ const b=CRIT.boss;
+ Object.values(CRIT).forEach(a=>{const n=at(nodeAt(a.x,a.y));a.x=n.x;a.y=n.y;a.path=[];if(a!==b&&a.mode!=='sleep'&&a.mode!=='nap'&&a.mode!=='hide'&&a.mode!=='follow')a.mode='roam';a.wait=a===b?a.wait:10});
  if(CRIT.dog.mode==='sleep'){const n=at(BED);CRIT.dog.x=n.x;CRIT.dog.y=n.y}
  if(CRIT.mouse.hidden){const n=at(HOLE);CRIT.mouse.x=n.x;CRIT.mouse.y=n.y}
+ // bạn đang đi vòng thì đi tiếp tới một chỗ mới (hay về bàn), đang đứng xem thì đứng xem tiếp
+ if(b.mode==='desk'){const n=at(SPOT);b.x=n.x;b.y=n.y}else if(!b.pause)goTo(b,b.mode==='back'?SPOT:nearNode(b,300))
 }
 // Đi theo đường đã tính; k: số nhịp 50ms đã trôi qua. Trả về true khi tới nơi
 function move(a,k){let left=a.spd*k*(a.boost?1.6:1);const sx=a.x,sy=a.y;
@@ -879,8 +894,16 @@ function move(a,k){let left=a.spd*k*(a.boost?1.6:1);const sx=a.x,sy=a.y;
  a.odo+=Math.abs(a.x-sx)+Math.abs(a.y-sy);return !a.path.length}
 const say=(a,t,n)=>{a.say=t;a.sayT=n||14};
 function think(k){
- const d=CRIT.dog,c=CRIT.cat,m=CRIT.mouse;
- [d,c,m].forEach(a=>{if(a.sayT>0)a.sayT-=k;if(a.jump>0)a.jump-=k});
+ const d=CRIT.dog,c=CRIT.cat,m=CRIT.mouse,b=CRIT.boss;
+ [d,c,m,b].forEach(a=>{if(a.sayT>0)a.sayT-=k;if(a.jump>0)a.jump-=k});
+ // bạn: ngồi bàn một lúc, rồi đi qua vài chỗ ngẫu nhiên, mỗi chỗ đứng nhìn và nói một câu, xong về bàn
+ if(b.mode==='desk'){if((b.wait-=k)<=0){b.mode='tour';b.stops=2+Math.floor(Math.random()*3);b.pause=0;goTo(b,nearNode(b,360));setAway();
+  if(d.mode!=='sleep'&&d.mode!=='bed'&&Math.random()<.6){d.mode='follow';d.re=0}}}
+ else if(b.pause>0){if((b.pause-=k)<=0){if(b.stops>0)goTo(b,nearNode(b,300));else{b.mode='back';goTo(b,SPOT)}}}
+ else if(move(b,k)){
+  if(b.mode==='back'){b.mode='desk';b.wait=bossGap();if(d.mode==='follow'){d.mode='roam';d.wait=20}setAway()}
+  else{b.stops--;b.pause=50+Math.random()*50;say(b,BOSS_SAY[Math.floor(Math.random()*BOSS_SAY.length)],40)}}
+ b.pose=b.path.length?'walk':'stand';
  // chuột: trốn trong lỗ, chui ra chạy một hai vòng rồi về
  if(m.mode==='hide'){if((m.wait-=k)<=0){m.hidden=false;m.mode='out';m.trips=1+Math.floor(Math.random()*2);goTo(m,randNode())}}
  else if(move(m,k)){
@@ -897,7 +920,10 @@ function think(k){
  else{c.spd=1.3;if(c.path.length)move(c,k);else if((c.wait-=k)<=0){if(Math.random()<.3){c.mode='nap';c.wait=220+Math.random()*260}else{goTo(c,randNode());c.wait=25+Math.random()*90}}}
  c.pose=c.mode==='nap'?'sleep':c.path.length?'walk':'sit';
  // chó: đi dạo, ra ngồi cạnh bàn bạn, hay về ổ ngủ
- if(d.mode==='sleep'){if((d.wait-=k)<=0){d.mode='roam';d.wait=0}}
+ if(d.mode!=='follow')d.spd=1.5;
+ if(d.mode==='follow'){if(b.mode==='desk'){d.mode='roam';d.wait=20}
+  else{d.spd=1.9;if((d.re-=k)<=0){d.re=8;if(dist(d,b)>16)goTo(d,nodeAt(b.x,b.y));else d.path=[]}move(d,k)}}
+ else if(d.mode==='sleep'){if((d.wait-=k)<=0){d.mode='roam';d.wait=0}}
  else if(d.mode==='bed'){if(move(d,k)){d.mode='sleep';d.wait=260+Math.random()*320}}
  else if(d.path.length)move(d,k);
  else if((d.wait-=k)<=0){const r=Math.random();
@@ -933,8 +959,17 @@ function critSay(y,t){const w=t.length*4.4+8;return RR(-w/2,y,w,11,3,'#ffffff',K
 function drawCrit(){
  const svg=$('#pets');if(!svg||!CRIT.dog)return;
  const t=performance.now();
- ['dog','cat','mouse'].forEach(n=>{const a=CRIT[n];let g=svg.querySelector('[data-c="'+n+'"]');
+ ['dog','cat','mouse','boss'].forEach(n=>{const a=CRIT[n];let g=svg.querySelector('[data-c="'+n+'"]');
   if(!g){g=document.createElementNS('http://www.w3.org/2000/svg','g');g.setAttribute('data-c',n);g.setAttribute('class','crit');svg.appendChild(g);g.addEventListener('pointerdown',()=>poke(n))}
+  if(n==='boss'){
+   // bạn đi một vòng: người đứng thẳng (chân bước khi đi), bong bóng việc chờ bạn đi theo trên đầu
+   const out=a.mode!=='desk',talk=a.sayT>0?a.say:'',key=[out,a.pose,talk,NEED_N].join('|');
+   g.setAttribute('transform','translate('+a.x.toFixed(1)+','+a.y.toFixed(1)+')');
+   if(g._k===key)return;g._k=key;
+   if(!out){g.innerHTML='';return}
+   g.innerHTML=R(-13,-40,26,41,'transparent')+'<g class="'+(a.pose==='walk'?'walker':'')+'">'+standFront(0,-38,BOSS_L,'boss','#2f6fe0','')+'</g>'
+    +(NEED_N?bubble(0,-57,'!'+NEED_N,'bad'):'')+(talk?critSay(NEED_N?-71:-53,talk):'');
+   return}
   const hide=n==='mouse'&&a.hidden,fr=Math.floor(a.odo/5)%2,wag=a.pose==='sit'&&n==='dog'?Math.floor(t/180)%2:0;
   const talk=a.sayT>0?a.say:'',key=[a.pose,fr,a.dir,talk,a.jump>0,hide,wag].join('|');
   const lift=a.jump>0?-Math.sin(Math.max(0,Math.min(1,(12-a.jump)/12))*Math.PI)*9:0;
@@ -949,6 +984,7 @@ function drawCrit(){
 function poke(n){const a=CRIT[n];if(!a)return;
  if(n==='dog'){say(a,'Gâu!',16);if(a.mode==='sleep'){a.mode='roam';a.wait=12}}
  else if(n==='cat'){say(a,'Meo!',16);if(a.mode==='nap'){a.mode='roam';a.wait=12}}
+ else if(n==='boss'){if(NEED_N)$('#needBox').scrollIntoView({behavior:MOTION_OK?'smooth':'auto',block:'start'});else say(a,'Chào!',20)}
  else if(!a.hidden)say(a,'Chít!',16);
  drawCrit()}
 let lastT=0;

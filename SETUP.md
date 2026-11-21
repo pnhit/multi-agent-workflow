@@ -274,7 +274,7 @@ sh workflow/watch.sh
   - nhìn hành động là biết trạng thái: gõ phím là đang làm, gõ ngón tay là có việc chờ, giơ tay "?" là đang chờ Master trả lời, bọ đỏ trên bàn là có lỗi Tester báo, Master đứng dậy quay lại giơ tờ giấy "!" là chờ bạn, gật gù "z" là rảnh. Dưới mỗi bàn có biển tên kèm trạng thái;
   - agent rảnh đứng uống nước ở cây nước; được gọi vào việc thì đi bộ về bàn;
   - cửa mở nghĩa là có việc chờ bạn; đồng hồ đứng và đèn tắt nghĩa là `watch.sh` không chạy; tính năng vừa xong thì có pháo giấy; chó, mèo, chuột chạy khắp văn phòng: chuột chui ra từ lỗ chân tường, mèo rượt theo, chó đi dạo rồi về ổ ngủ ở góc nghỉ (bấm vào chúng thử xem);
-  - bàn "BẠN" ở góc phải là của bạn: có việc chờ bạn thì hiện `!`, bấm vào để tới mục "Cần bạn".
+  - bàn "BẠN" ở góc phải là của bạn: có việc chờ bạn thì hiện `!`, bấm vào để tới mục "Cần bạn". Thỉnh thoảng bạn rời bàn đi một vòng văn phòng (chó có khi đi theo) rồi về.
 - **Xem thử giao diện** mà không cần dự án: `node workflow/monitor.js --demo --port 4321`. Dữ liệu giả nằm trong thư mục tạm, cứ 9 giây đổi một cảnh (đi bộ, pháo giấy, tắt đèn).
 - **Bấm vào một agent** để xem file đang chờ nó và log gần nhất.
 - Trang tự làm mới 3 giây một lần, **chỉ đọc**, và chỉ mở trên máy bạn: máy khác trong mạng không vào được.
