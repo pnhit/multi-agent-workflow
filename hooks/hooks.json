@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "matcher": "run_shell_command",
+        "hooks": [
+          {
+            "name": "workflow-guard",
+            "type": "command",
+            "command": "node \"${extensionPath}/kit/workflow/hooks/guard-root.cjs\"",
+            "timeout": 10000,
+            "description": "Chặn lệnh git nguy hiểm trong dự án có workflow"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "name": "workflow-session",
+            "type": "command",
+            "command": "node \"${extensionPath}/scripts/kit.mjs\" session-start --tool gemini",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}
