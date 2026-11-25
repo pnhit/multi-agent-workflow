@@ -8,7 +8,8 @@
 //                          (agents.txt, project.conf) không đụng tới; file dùng chung (AGENTS.md, CLAUDE.md…) chỉ báo
 //                          "cần gộp" để người hay AI gộp tay
 //   status                 so dự án với bộ khởi đầu, không ghi gì
-//   session-start --tool claude|gemini   in ngữ cảnh đầu phiên cho hook SessionStart (nhắc cập nhật khi lệch bản)
+//   session-start --tool claude|gemini|antigravity   in ngữ cảnh đầu phiên cho hook SessionStart (nhắc cập nhật
+//                          khi lệch bản; Gemini, Antigravity: kèm đường dẫn plugin)
 //
 // Thư mục dự án: thư mục gốc (dòng đầu của `git worktree list`) của thư mục đang đứng; không phải repo git thì
 // chính thư mục đang đứng.
@@ -155,14 +156,24 @@ export function versionNotice(root) {
   return '';
 }
 
-function sessionStart(tool) {
-  const root = projectRoot();
+// Đầu vào JSON của hook (stdin); không có hay hỏng thì {}.
+function readHookInput() {
+  if (process.stdin.isTTY) return {};
+  try { return JSON.parse(fs.readFileSync(0, 'utf8') || '{}') || {}; } catch { return {}; }
+}
+
+function sessionStart(tool, input = {}) {
+  // Antigravity chạy hook ở thư mục plugin, nên thư mục dự án lấy từ đầu vào (cwd, workspacePaths).
+  const ws = Array.isArray(input.workspacePaths) && input.workspacePaths[0];
+  const root = projectRoot(input.cwd || ws || process.cwd());
   const notice = versionNotice(root);
+  // Lệnh TOML của Gemini và skill của Antigravity không biết đường dẫn plugin, nên đưa đường dẫn vào ngữ cảnh phiên.
+  const ctx = [`WORKFLOW_PLUGIN_DIR=${path.resolve(HERE, '..')} (thư mục plugin workflow; các lệnh workflow dùng đường dẫn này).`];
+  if (notice) ctx.push(notice);
   if (tool === 'gemini') {
-    // Lệnh TOML của Gemini không biết đường dẫn extension, nên đưa đường dẫn vào ngữ cảnh phiên.
-    const ctx = [`WORKFLOW_PLUGIN_DIR=${path.resolve(HERE, '..')} (thư mục extension workflow; các lệnh /workflow:* dùng đường dẫn này).`];
-    if (notice) ctx.push(notice);
     process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: ctx.join('\n') } }));
+  } else if (tool === 'antigravity') {
+    process.stdout.write(JSON.stringify({ injectSteps: [{ systemMessage: { systemMessage: ctx.join('\n') } }] }));
   } else if (notice) {
     process.stdout.write(notice + '\n');
   }
@@ -212,7 +223,8 @@ function main(argv) {
     }
     case 'session-start': {
       const i = rest.indexOf('--tool');
-      try { sessionStart(i >= 0 ? rest[i + 1] : 'claude'); } catch {}
+      const tool = i >= 0 ? rest[i + 1] : 'claude';
+      try { sessionStart(tool, readHookInput()); } catch { if (tool === 'antigravity') process.stdout.write('{}'); }
       break;
     }
     default:

@@ -6,7 +6,8 @@
 //   plugin/VERSION           bản của plugin, ghi vào dự án khi cài (WORKFLOW_VERSION)
 // Ra:
 //   plugin/dist/claude/      plugin Claude Code (marketplace ở .claude-plugin/marketplace.json của repo)
-//   plugin/dist/gemini/      extension Gemini CLI (Antigravity nhập được extension Gemini)
+//   plugin/dist/gemini/      extension Gemini CLI
+//   plugin/dist/antigravity/ plugin Antigravity (lệnh thành skill /workflow-<tên>, hook PreToolUse run_command)
 //
 //   node plugin/build.mjs           dựng lại plugin/dist/
 //   node plugin/build.mjs --check   chỉ kiểm plugin/dist/ có khớp nguồn không (mã 1 nếu lệch)
@@ -102,11 +103,37 @@ function buildGemini(out, version) {
   }));
 }
 
+// Antigravity: plugin.json ở gốc; lệnh slash là skill (skills/<tên>/SKILL.md, gọi bằng /<tên>), thư mục commands/
+// bị bỏ qua; hook trong hooks.json ở gốc, chạy với cwd là thư mục plugin, nên đường dẫn trong lệnh hook là tương đối.
+// Skill không có biến đường dẫn plugin và (theo tài liệu) không nhận tham số: đường dẫn lấy từ ngữ cảnh đầu phiên,
+// tham số là phần chủ dự án gõ kèm lệnh.
+function buildAntigravity(out, version) {
+  common(out);
+  write(path.join(out, 'plugin.json'), json({ name: NAME, displayName: 'Workflow multi-agent', description: DESCRIPTION, version }));
+  for (const c of readCommands()) {
+    const skill = `${NAME}-${c.name}`;
+    let body = c.body.replaceAll('{{PLUGIN_DIR}}', '<WORKFLOW_PLUGIN_DIR>')
+      .replaceAll('{{ARGS}}', c.meta['argument-hint'] ? `<phần chủ dự án gõ sau /${skill}, nếu có: ${c.meta['argument-hint']}>` : '');
+    if (c.body.includes('{{PLUGIN_DIR}}')) body = '`<WORKFLOW_PLUGIN_DIR>` là đường dẫn ở dòng `WORKFLOW_PLUGIN_DIR=` trong ngữ cảnh đầu phiên.\n\n' + body;
+    write(path.join(out, 'skills', skill, 'SKILL.md'),
+      ['---', `name: ${skill}`, `description: ${JSON.stringify(c.meta.description)}`, 'disable-model-invocation: true', '---', '', body].join('\n'));
+  }
+  write(path.join(out, 'hooks.json'), json({
+    [NAME]: {
+      PreToolUse: [{ matcher: 'run_command', hooks: [{ type: 'command', command: 'node ./kit/workflow/hooks/guard-root.cjs', timeout: 10 }] }],
+      SessionStart: [{ type: 'command', command: 'node ./scripts/kit.mjs session-start --tool antigravity', timeout: 10 }],
+    },
+  }));
+}
+
+export const TARGETS = ['claude', 'gemini', 'antigravity'];
+
 export function build(outRoot) {
   const version = fs.readFileSync(path.join(PLUGIN, 'VERSION'), 'utf8').trim();
   fs.rmSync(outRoot, { recursive: true, force: true });
   buildClaude(path.join(outRoot, 'claude'), version);
   buildGemini(path.join(outRoot, 'gemini'), version);
+  buildAntigravity(path.join(outRoot, 'antigravity'), version);
   return version;
 }
 
@@ -138,6 +165,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.log('plugin/dist/ khớp nguồn.');
   } else {
     const v = build(dist);
-    console.log(`Đã dựng plugin ${NAME} ${v}: plugin/dist/claude, plugin/dist/gemini`);
+    console.log(`Đã dựng plugin ${NAME} ${v}: ${TARGETS.map(t => `plugin/dist/${t}`).join(', ')}`);
   }
 }

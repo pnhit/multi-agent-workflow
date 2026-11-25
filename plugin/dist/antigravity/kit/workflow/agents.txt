@@ -1,0 +1,56 @@
+# Danh sách agent và cách đánh thức. Chủ dự án điền; agent không sửa file này.
+#
+# Mỗi dòng:  <ID>  <vai>  <chế độ>  <lệnh, tên subagent, hoặc ghi chú>
+#
+# Bốn chế độ:
+#   subagent : Master tự gọi subagent này ngay trong phiên chat của Master (Claude Code, ứng dụng desktop
+#              hoặc dòng lệnh). Cột cuối là tên subagent trong .claude/agents/ (coder, coder-pro, tester).
+#              Không cần cài thêm gì. watch.sh không đánh thức, không báo.
+#   auto     : watch.sh tự chạy lệnh ở chế độ chạy ngầm, thêm lời nhắn vào cuối lệnh, ghi log vào
+#              workflow/logs/. Agent chạy KHÔNG có người canh: chỉ cấp quyền cần thiết, không cấp quyền push.
+#   window   : watch.sh mở một CỬA SỔ terminal mới, chạy công cụ ở dạng tương tác với lời nhắn gửi sẵn.
+#              Bạn thấy agent làm gì, trả lời được khi nó xin quyền. Cửa sổ còn mở mà có việc mới thì
+#              watch.sh không mở thêm, chỉ báo bạn gõ "Xử lý việc đang chờ" vào cửa sổ đó.
+#   manual   : watch.sh báo (màn hình và Telegram) và chép sẵn lời nhắn vào clipboard; bạn mở công cụ
+#              rồi dán. Hợp với công cụ chỉ có giao diện, ví dụ ứng dụng Antigravity.
+# Chế độ auto và window cần công cụ AI dòng lệnh (xem SETUP.md, bước 3). Lệnh phải kết thúc bằng tham số
+# nhận lời nhắn, vì watch.sh thêm lời nhắn vào cuối lệnh.
+#
+# Lệnh mẫu (kiểm tra lại theo phiên bản công cụ bạn cài):
+#   Công cụ         auto (chạy ngầm)                                         window (cửa sổ)
+#   Claude Code   : claude -p --permission-mode acceptEdits --model sonnet  claude --model sonnet
+#   Antigravity   : agy --mode accept-edits --model <model> -p              agy --model <model> -i
+#   Codex CLI     : codex exec --sandbox workspace-write                    codex
+#   Gemini CLI    : gemini --approval-mode auto_edit -p                     gemini -i
+#   Xem model của Antigravity: agy models. Thêm --effort low cho việc nhẹ (khảo sát, kiểm tra đơn giản).
+#   Tài khoản Claude thứ hai:
+#     env CLAUDE_CONFIG_DIR=/c/Users/<tên-bạn>/.claude-acc2 claude -p --permission-mode acceptEdits --model sonnet
+#
+# Master: để manual, vì bạn đang chat với Master trong phiên chính. Khi có việc chờ Master, watch.sh báo bạn;
+# bạn nói với Master "Xử lý việc đang chờ".
+# Mỗi phiên chat là một Master. Một phiên làm lần lượt nhiều tính năng vẫn là master-01.
+# Mở thêm phiên để làm song song thì câu đầu tiên nói với phiên mới: "Bạn là master-02." (master-02, master-03
+# đã khai sẵn bên dưới; cần nhiều hơn thì thêm dòng). Không nêu ID mà đang có tính năng dở, Master sẽ hỏi lại.
+
+master-01     master  manual    phiên chat chính
+master-02     master  manual    phiên chat song song thứ hai
+master-03     master  manual    phiên chat song song thứ ba
+
+# Mỗi ID chỉ làm cho MỘT Master một lúc: hai Master cùng giao cho coder-01 thì hai subagent mang chung ID,
+# chung file .run/coder-01.sub, monitor và nhật ký lẫn lộn. Nên mỗi Master có Coder, Tester riêng:
+# master-01 dùng coder-01, tester-01; master-02 dùng coder-02, tester-02… (watch.sh --lint báo khi bị dùng chung).
+coder-01      coder   subagent  coder
+coder-02      coder   subagent  coder
+coder-03      coder   subagent  coder
+tester-01     tester  subagent  tester
+tester-02     tester  subagent  tester
+tester-03     tester  subagent  tester
+
+# Tester nên khác model với Coder của việc (dễ mù cùng một chỗ): subagent coder dùng sonnet, tester dùng opus.
+# Việc giao cho coder-pro (opus) thì tốt nhất có một Tester chạy công cụ khác, như tester-09 bên dưới.
+#
+# Ví dụ khác:
+# coder-04    coder   subagent  coder-pro          (việc khó, model mạnh hơn)
+# coder-05    coder   auto      claude -p --permission-mode acceptEdits --model sonnet
+# tester-09   tester  window    agy --model <model> -i          (Antigravity CLI, mở cửa sổ riêng)
+# tester-08   tester  manual    Antigravity (ứng dụng giao diện, dán lời nhắn từ clipboard)

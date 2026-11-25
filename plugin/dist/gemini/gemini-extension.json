@@ -1,6 +1,6 @@
 {
   "name": "workflow",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Workflow multi-agent: Master, Coder, Tester phối hợp qua file trong workflow/. Cài, cập nhật bộ khởi đầu, chặn lệnh git nguy hiểm, lệnh /workflow:*.",
   "contextFileName": "WORKFLOW.md"
 }
