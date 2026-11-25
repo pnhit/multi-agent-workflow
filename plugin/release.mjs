@@ -9,7 +9,8 @@
 //   2. tạo tag có chú thích v<bản> trên HEAD: Claude Code cài theo tag này
 //        /plugin marketplace add <chủ>/<repo>#v<bản>
 //   3. dựng một commit chỉ chứa plugin/dist/gemini (git commit-tree, không đổi cấu trúc repo), nối vào nhánh
-//      gemini-extension, gắn tag gemini-v<bản>. Gemini CLI lấy GỐC của commit làm extension, nên cần commit này:
+//      gemini-extension, gắn tag NHẸ gemini-v<bản> (tag có chú thích trỏ vào commit này bị GitHub trả lỗi 500 khi
+//      push, lần phát hành 0.3.0). Gemini CLI lấy GỐC của commit làm extension, nên cần commit này:
 //        gemini extensions install <url repo> --ref gemini-v<bản>                       (ghim bản)
 //        gemini extensions install <url repo> --ref gemini-extension --auto-update      (luôn lấy bản mới)
 import fs from 'node:fs';
@@ -51,7 +52,8 @@ export function release(repo, version, { message = '' } = {}) {
   if (p.parent) args.splice(2, 0, '-p', p.parent);
   const geminiCommit = git(repo, ...args);
   git(repo, 'update-ref', `refs/heads/${GEMINI_BRANCH}`, geminiCommit, p.local || '');
-  git(repo, 'tag', '-a', p.geminiTag, '-m', `${p.geminiTag}: ${note}`, geminiCommit);
+  // Tag nhẹ: tag có chú thích trỏ vào commit gốc này bị GitHub trả lỗi 500 khi push (lần phát hành 0.3.0).
+  git(repo, 'tag', p.geminiTag, geminiCommit);
   return { ...p, geminiCommit };
 }
 

@@ -36,6 +36,7 @@ test('release: tag nhánh chính, nhánh Gemini có gốc là extension, các b�
     // Gốc của nhánh Gemini chính là extension
     assert.deepEqual(git(repo, 'ls-tree', '--name-only', GEMINI_BRANCH).split('\n').sort(), ['commands', 'gemini-extension.json']);
     assert.equal(git(repo, 'rev-parse', 'gemini-v0.3.0^{commit}'), r1.geminiCommit);
+    assert.equal(git(repo, 'cat-file', '-t', 'gemini-v0.3.0'), 'commit'); // tag nhẹ (xem release.mjs)
     assert.equal(git(repo, 'rev-parse', `${GEMINI_BRANCH}`), r1.geminiCommit);
     assert.equal(git(repo, 'rev-list', '--count', GEMINI_BRANCH), '1');
 
