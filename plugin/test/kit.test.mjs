@@ -97,6 +97,22 @@ test('session-start: Claude im lặng khi không có gì; Gemini luôn có WORKF
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
+test('session-start Antigravity: hook chạy ở thư mục plugin, dự án lấy từ workspacePaths; luôn in JSON injectSteps', () => {
+  const root = tmp(), elsewhere = tmp();
+  const kit = path.join(PLUGIN, 'scripts', 'kit.mjs');
+  const run = input => JSON.parse(execFileSync(process.execPath, [kit, 'session-start', '--tool', 'antigravity'], { cwd: elsewhere, input: JSON.stringify(input), encoding: 'utf8' }));
+  const text = o => o.injectSteps[0].systemMessage.systemMessage;
+  try {
+    assert.match(text(run({ workspacePaths: [root] })), /^WORKFLOW_PLUGIN_DIR=/);
+    assert.doesNotMatch(text(run({ workspacePaths: [root] })), /upgrade/);
+    init(root);
+    fs.writeFileSync(path.join(root, 'workflow', 'project.conf'), read(root, 'workflow', 'project.conf').replace(/^WORKFLOW_VERSION=.*$/m, 'WORKFLOW_VERSION=0.0.1'));
+    assert.match(text(run({ workspacePaths: [root] })), /\/workflow:upgrade/);
+    // Claude cũng đọc cwd từ đầu vào hook, không phụ thuộc thư mục đang đứng
+    assert.match(execFileSync(process.execPath, [kit, 'session-start', '--tool', 'claude'], { cwd: elsewhere, input: JSON.stringify({ cwd: root }), encoding: 'utf8' }), /\/workflow:upgrade/);
+  } finally { for (const d of [root, elsewhere]) fs.rmSync(d, { recursive: true, force: true }); }
+});
+
 test('plugin/dist/ khớp nguồn (sửa nguồn thì chạy node plugin/build.mjs)', () => {
   const out = tmp();
   try {
@@ -133,5 +149,23 @@ test('bản dựng: lệnh, hook, khai báo đúng định dạng từng công c
     assert.match(gh.BeforeTool[0].hooks[0].command, /\$\{extensionPath\}\/kit\/workflow\/hooks\/guard-root\.cjs/);
     assert.ok(fs.existsSync(path.join(gemini, 'kit', 'workflow', 'hooks', 'guard-root.cjs')));
     assert.equal(JSON.parse(read(gemini, 'gemini-extension.json')).version, pluginVersion());
+    // Antigravity: plugin.json ở gốc (chỉ trường được phép), skill /workflow-<tên>, hooks.json ở gốc
+    const ag = path.join(out, 'antigravity');
+    const pj = JSON.parse(read(ag, 'plugin.json'));
+    assert.equal(pj.version, pluginVersion());
+    assert.match(pj.name, /^[a-z0-9]+(-[a-z0-9]+)*$/);
+    assert.deepEqual(Object.keys(pj).filter(k => !['name', 'displayName', 'description', 'version'].includes(k)), []);
+    for (const n of names) {
+      const s = read(ag, 'skills', `workflow-${n}`, 'SKILL.md');
+      assert.match(s, new RegExp(`^---\\nname: workflow-${n}\\ndescription: ".+"\\ndisable-model-invocation: true\\n---\\n`));
+      assert.doesNotMatch(s, /\{\{(PLUGIN_DIR|ARGS)\}\}|\$\{/);
+    }
+    assert.match(read(ag, 'skills', 'workflow-init', 'SKILL.md'), /node "<WORKFLOW_PLUGIN_DIR>\/scripts\/kit\.mjs" init/);
+    assert.ok(!fs.existsSync(path.join(ag, 'commands')));
+    const ah = JSON.parse(read(ag, 'hooks.json')).workflow;
+    assert.equal(ah.PreToolUse[0].matcher, 'run_command');
+    assert.equal(ah.PreToolUse[0].hooks[0].command, 'node ./kit/workflow/hooks/guard-root.cjs');
+    assert.ok(fs.existsSync(path.join(ag, 'kit', 'workflow', 'hooks', 'guard-root.cjs')));
+    assert.match(ah.SessionStart[0].command, /--tool antigravity$/);
   } finally { fs.rmSync(out, { recursive: true, force: true }); }
 });

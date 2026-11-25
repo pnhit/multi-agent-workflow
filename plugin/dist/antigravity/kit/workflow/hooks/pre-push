@@ -1,0 +1,35 @@
+#!/usr/bin/env sh
+# workflow-multi-agent: block-push
+# Hook git do workflow multi-agent cài (sh workflow/hooks/install.sh).
+# Chặn push THẲNG lên nhánh chính (BASE_BRANCH trong workflow/project.conf) khi DELIVERY=mr:
+# code vào nhánh chính phải qua MR/PR. Áp dụng cho mọi người và mọi công cụ AI, vì git tự chạy hook
+# này trước khi push. Push nhánh khác (feat/…, fix/…) đi qua bình thường, không cần cờ gì.
+# DELIVERY=merge thì không chặn gì (chủ dự án gộp ở máy rồi push nhánh chính).
+#
+# Hook không thoát sớm khi cho qua, nên gộp được vào đầu một hook pre-push có sẵn: phần phía sau
+# (lint, test của team) vẫn chạy, và vẫn đọc được danh sách nhánh từ stdin như bình thường.
+
+_wf_refs=$(cat)
+
+# Thư mục gốc dự án: dòng đầu của "git worktree list" (đúng cả khi push từ một worktree)
+_wf_root=$(git worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p')
+[ -n "$_wf_root" ] || _wf_root=$(git rev-parse --show-toplevel 2>/dev/null)
+_wf_conf="$_wf_root/workflow/project.conf"
+_wf_get() { [ -f "$_wf_conf" ] && sed -n "s/^$1=//p" "$_wf_conf" | tail -n 1 | tr -d '\r" '; }
+_wf_base=$(_wf_get BASE_BRANCH)
+_wf_delivery=$(_wf_get DELIVERY)
+
+if [ "$_wf_delivery" = "mr" ] && [ -n "$_wf_base" ]; then
+  # Mỗi dòng stdin: <nhánh máy> <sha máy> <nhánh xa> <sha xa>
+  _wf_hit=$(printf '%s\n' "$_wf_refs" | awk -v r="refs/heads/$_wf_base" '$3 == r { print; exit }')
+  if [ -n "$_wf_hit" ]; then
+    echo "git push bị chặn: không push thẳng lên '$_wf_base' (workflow/project.conf: DELIVERY=mr)." >&2
+    echo "- Push nhánh tính năng rồi mở MR/PR vào '$_wf_base', ví dụ: git push -u ${1:-origin} feat/<tên>" >&2
+    echo "- AI agent: dừng và báo chủ dự án, KHÔNG tìm cách khác (--no-verify, sửa hay xoá hook)." >&2
+    exit 1
+  fi
+fi
+
+# Trả lại stdin cho phần hook phía sau (nếu hook này được gộp vào hook có sẵn)
+_wf_tmp=$(mktemp 2>/dev/null) && { [ -z "$_wf_refs" ] || printf '%s\n' "$_wf_refs"; } > "$_wf_tmp" && exec < "$_wf_tmp"
+rm -f "$_wf_tmp" 2>/dev/null

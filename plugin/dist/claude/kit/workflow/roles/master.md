@@ -137,7 +137,7 @@ Coder vẫn hỏi được (câu hỏi `to: <bạn>`, bước 4–6). Câu hỏi
   - mọi việc code, rebase, dựng nhánh giao hàng, sửa sau giao hàng đều làm trong **worktree riêng** (`../<tên-dự-án>-wt/…`);
   - **không** `git switch`, `checkout`, `rebase`, `merge`, `reset`, `stash` ở thư mục gốc. Ngoại lệ duy nhất là gộp ở máy khi `DELIVERY=merge` (mục "Giao hàng"), và chỉ khi không có Master nào khác đang mở;
   - thư mục gốc vẫn là nơi đọc, ghi các file trong `workflow/` (`AGENTS.md` mục 4);
-  - hook `workflow/hooks/guard-root.cjs` (Claude Code; Gemini CLI khi cài extension workflow) chặn các lệnh đó khi chúng nhắm vào thư mục gốc. Đưa thư mục gốc về `<nhánh chính>` (`git switch <nhánh chính>`) vẫn được. Gặp hook chặn thì làm trong worktree, đừng tìm cách khác.
+  - hook `workflow/hooks/guard-root.cjs` (Claude Code; Gemini CLI, Antigravity khi cài plugin workflow) chặn các lệnh đó khi chúng nhắm vào thư mục gốc. Đưa thư mục gốc về `<nhánh chính>` (`git switch <nhánh chính>`) vẫn được. Gặp hook chặn thì làm trong worktree, đừng tìm cách khác.
 - **Đầu mỗi yêu cầu, kiểm `watch.sh` còn sống:** dòng đầu của `workflow/.run/watch.beat` là giờ (giây epoch) lần quét cuối. Không có file, hoặc cũ hơn 3 chu kỳ quét (mặc định 90 giây), thì ghi `.now` *"Chờ bạn: watch.sh đã dừng"* và báo chủ dự án chạy lại: `sh workflow/watch.sh --restart`. Khi `watch.sh` chết thì không còn gì khác báo cho chủ dự án biết.
 
 - **Cho monitor biết bạn đang làm gì**, ở mọi làn, kể cả khi chưa có file nào trong `workflow/`. Ghi đè file `workflow/.run/<ID của bạn>.now` một dòng, mỗi khi đổi giai đoạn:

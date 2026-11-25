@@ -24,7 +24,7 @@
 
 ## 1. Chép bộ khởi đầu vào dự án
 
-**Cách nhanh: dùng plugin** (lệnh cài đầy đủ ở [plugin/README.md](plugin/README.md), mục "Cài"). Claude Code: `/plugin marketplace add <chủ>/<repo>#v<bản>`, `/plugin install workflow@multi-agent-workflow`, rồi gõ `/workflow:init` trong dự án. Gemini CLI: `gemini extensions install https://github.com/<chủ>/<repo> --ref gemini-v<bản>`, rồi `/workflow:init`. Lệnh này chép bộ khởi đầu dưới đây vào dự án, file đã có thì giữ nguyên và báo để gộp tay (xem "Dự án đã có" bên dưới). Sau này cập nhật bằng `/workflow:upgrade`. Không dùng plugin thì chạy tay `node plugin/scripts/kit.mjs init` tại thư mục dự án (đường dẫn tới repo này), hoặc chép tay như sau.
+**Cách nhanh: dùng plugin** (lệnh cài đầy đủ ở [plugin/README.md](plugin/README.md), mục "Cài"). Claude Code: `/plugin marketplace add <chủ>/<repo>#v<bản>`, `/plugin install workflow@multi-agent-workflow`, rồi gõ `/workflow:init` trong dự án. Gemini CLI: `gemini extensions install https://github.com/<chủ>/<repo> --ref gemini-v<bản>`, rồi `/workflow:init`. Antigravity: cài từ một bản clone (`agy plugin install <bản clone>/plugin/dist/antigravity`), rồi `/workflow-init`. Lệnh này chép bộ khởi đầu dưới đây vào dự án, file đã có thì giữ nguyên và báo để gộp tay (xem "Dự án đã có" bên dưới). Sau này cập nhật bằng `/workflow:upgrade`. Không dùng plugin thì chạy tay `node plugin/scripts/kit.mjs init` tại thư mục dự án (đường dẫn tới repo này), hoặc chép tay như sau.
 
 Chép **toàn bộ nội dung** thư mục [starter-kit/](starter-kit/) vào **thư mục gốc** dự án:
 
@@ -45,7 +45,7 @@ workflow/
   monitor.js               trang theo dõi local
   notify.sh                gửi Telegram
   hooks/                   hook git chặn push thẳng lên nhánh chính (pre-push) và script cài (install.sh);
-                           guard-root.cjs: hook (Claude Code; Gemini CLI qua extension) chặn agent switch, checkout,
+                           guard-root.cjs: hook (Claude Code; Gemini CLI, Antigravity qua plugin) chặn agent switch, checkout,
                            rebase, reset, stash, merge ở thư mục gốc (thư mục gốc là của bạn; agent làm trong worktree),
                            và chặn --no-verify, push đè ở mọi nơi
   .gitignore               bỏ qua các file do watch.sh sinh ra và workflow/.env

@@ -41,10 +41,17 @@ test('parseInput: nhận đầu vào Claude (Bash, PowerShell) và Gemini (run_s
   assert.equal(parseInput({ tool_name: 'Read', tool_input: { file_path: 'a' } }), null);
   assert.equal(parseInput({ tool_name: 'write_file', tool_input: { content: 'x' }, hook_event_name: 'BeforeTool' }), null);
   assert.equal(parseInput(null), null);
+  // Antigravity: toolCall.args.CommandLine, Cwd; thiếu Cwd thì lấy workspacePaths[0]
+  const a = parseInput({ toolCall: { name: 'run_command', args: { CommandLine: 'git status', Cwd: path.resolve('/w/p') } }, workspacePaths: [path.resolve('/w')] });
+  assert.deepEqual(a, { tool: 'antigravity', command: 'git status', cwd: path.resolve('/w/p') });
+  assert.equal(parseInput({ toolCall: { name: 'run_command', args: { CommandLine: 'ls' } }, workspacePaths: [path.resolve('/w')] }).cwd, path.resolve('/w'));
+  assert.equal(parseInput({ toolCall: { name: 'edit_file', args: { path: 'a' } } }), null);
+  assert.equal(parseInput({ toolCall: { name: 'run_command', args: {} } }), null);
 });
 
 test('denyOutput: đúng giao thức từng công cụ', () => {
   assert.deepEqual(denyOutput('gemini', 'r'), { decision: 'deny', reason: 'r' });
+  assert.deepEqual(denyOutput('antigravity', 'r'), { decision: 'deny', reason: 'r' });
   const c = denyOutput('claude', 'r').hookSpecificOutput;
   assert.equal(c.hookEventName, 'PreToolUse');
   assert.equal(c.permissionDecision, 'deny');
@@ -107,5 +114,11 @@ test('chạy như hook: Gemini nhận {decision: deny}, Claude nhận hookSpecif
     assert.equal(c.hookSpecificOutput.permissionDecision, 'deny');
     assert.equal(run({ tool_name: 'Bash', tool_input: { command: 'git status' }, cwd: root }), '');
     assert.equal(execFileSync(process.execPath, [GUARD], { input: 'không phải json', encoding: 'utf8' }), '');
+    // Antigravity: hook chạy ở thư mục plugin (cwd khác dự án), luôn in JSON
+    const runAg = input => execFileSync(process.execPath, [GUARD], { input: JSON.stringify(input), encoding: 'utf8', cwd: os.tmpdir() });
+    const ag = JSON.parse(runAg({ toolCall: { name: 'run_command', args: { CommandLine: 'git checkout feat/a', Cwd: root } }, workspacePaths: [root] }));
+    assert.equal(ag.decision, 'deny');
+    assert.match(ag.reason, /thư mục gốc/);
+    assert.deepEqual(JSON.parse(runAg({ toolCall: { name: 'run_command', args: { CommandLine: 'git status' } }, workspacePaths: [root] })), {});
   } finally { fs.rmSync(top, { recursive: true, force: true }); }
 });
