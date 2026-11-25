@@ -24,7 +24,7 @@
 
 ## 1. Chép bộ khởi đầu vào dự án
 
-**Cách nhanh: dùng plugin** (xem [plugin/README.md](plugin/README.md)). Claude Code: `/plugin marketplace add <repo này>`, `/plugin install workflow@multi-agent-workflow`, rồi gõ `/workflow:init` trong dự án. Gemini CLI: `gemini extensions install <bản clone repo này>/plugin/dist/gemini` (cài từ thư mục trên máy, vì extension nằm trong thư mục con của repo), rồi `/workflow:init`. Lệnh này chép bộ khởi đầu dưới đây vào dự án, file đã có thì giữ nguyên và báo để gộp tay (xem "Dự án đã có" bên dưới). Sau này cập nhật bằng `/workflow:upgrade`. Không dùng plugin thì chạy tay `node plugin/scripts/kit.mjs init` tại thư mục dự án (đường dẫn tới repo này), hoặc chép tay như sau.
+**Cách nhanh: dùng plugin** (lệnh cài đầy đủ ở [plugin/README.md](plugin/README.md), mục "Cài"). Claude Code: `/plugin marketplace add <chủ>/<repo>#v<bản>`, `/plugin install workflow@multi-agent-workflow`, rồi gõ `/workflow:init` trong dự án. Gemini CLI: `gemini extensions install https://github.com/<chủ>/<repo> --ref gemini-v<bản>`, rồi `/workflow:init`. Lệnh này chép bộ khởi đầu dưới đây vào dự án, file đã có thì giữ nguyên và báo để gộp tay (xem "Dự án đã có" bên dưới). Sau này cập nhật bằng `/workflow:upgrade`. Không dùng plugin thì chạy tay `node plugin/scripts/kit.mjs init` tại thư mục dự án (đường dẫn tới repo này), hoặc chép tay như sau.
 
 Chép **toàn bộ nội dung** thư mục [starter-kit/](starter-kit/) vào **thư mục gốc** dự án:
 
