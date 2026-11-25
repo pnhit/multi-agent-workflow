@@ -1,6 +1,8 @@
 // Hook chặn lệnh nguy hiểm của workflow multi-agent. Một file dùng cho mọi công cụ AI có hook trước khi chạy lệnh:
 //   - Claude Code: PreToolUse, công cụ Bash | PowerShell (đăng ký trong .claude/settings.json hoặc plugin);
-//   - Gemini CLI (và Antigravity khi nhập extension Gemini): BeforeTool, công cụ run_shell_command.
+//   - Gemini CLI: BeforeTool, công cụ run_shell_command (đăng ký trong extension);
+//   - Antigravity: PreToolUse, công cụ run_command (đăng ký trong plugin; hook chạy ở thư mục plugin, nên thư
+//     mục dự án lấy từ args.Cwd hoặc workspacePaths của đầu vào).
 // Công cụ nào không có hook thì vẫn còn hook pre-push của git và luật trong AGENTS.md.
 //
 // 1. Thư mục gốc: chặn agent đổi trạng thái git ở THƯ MỤC GỐC dự án (dòng đầu của `git worktree list`): thư mục
@@ -18,7 +20,7 @@
 //    cũng bị chặn.
 //
 // Thư mục mà lệnh git chạy trong đó: `git -C <thư mục> …`, `cd <thư mục> && … git …`, thư mục công cụ ghi kèm
-// lệnh (Gemini: dir_path), còn lại là cwd của phiên.
+// lệnh (Gemini: dir_path, Antigravity: Cwd), còn lại là cwd của phiên.
 // Không phải repo git, dự án chưa có workflow/project.conf (hook nạp qua plugin chạy ở mọi dự án), lỗi đọc: cho qua.
 // Hook này là hàng rào, không phải bộ phân xử.
 'use strict';
@@ -41,6 +43,16 @@ const ROOT_BAD = new Set(['switch', 'checkout', 'restore', 'reset', 'rebase', 'm
 // Đầu vào hook của từng công cụ → { tool, command, cwd }, hoặc null nếu không phải lệnh shell.
 function parseInput(input) {
   if (!input || typeof input !== 'object') return null;
+  // Antigravity: {toolCall: {name: 'run_command', args: {CommandLine, Cwd}}, workspacePaths: [...]}
+  if (input.toolCall && typeof input.toolCall === 'object') {
+    const tc = input.toolCall, a = tc.args || {};
+    if (tc.name !== 'run_command') return null;
+    const cmd = [a.CommandLine, a.commandLine, a.command].find(x => typeof x === 'string' && x) || '';
+    if (!cmd) return null;
+    const ws = Array.isArray(input.workspacePaths) && input.workspacePaths[0];
+    const cwd = [a.Cwd, a.cwd].find(x => typeof x === 'string' && x) || ws || process.cwd();
+    return { tool: 'antigravity', command: cmd, cwd: path.resolve(toNative(cwd)) };
+  }
   const ti = input.tool_input || {};
   const command = typeof ti.command === 'string' ? ti.command : '';
   if (!command) return null;
@@ -142,7 +154,7 @@ function decide({ command, cwd }) {
 
 // Đầu ra "chặn" theo giao thức của từng công cụ.
 function denyOutput(tool, reason) {
-  if (tool === 'gemini') return { decision: 'deny', reason };
+  if (tool === 'gemini' || tool === 'antigravity') return { decision: 'deny', reason };
   return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: reason } };
 }
 
@@ -154,6 +166,8 @@ function main() {
   let reason = null;
   try { reason = decide(req); } catch { reason = null; }
   if (reason) process.stdout.write(JSON.stringify(denyOutput(req.tool, reason)));
+  // Antigravity đòi hook luôn in JSON; {} là không quyết gì, để luồng duyệt thường của công cụ chạy tiếp.
+  else if (req.tool === 'antigravity') process.stdout.write('{}');
   process.exit(0);
 }
 
