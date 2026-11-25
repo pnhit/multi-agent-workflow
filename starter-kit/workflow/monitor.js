@@ -203,6 +203,13 @@ function state() {
   // (thật ra là chờ Master) hiện thành việc chờ chủ dự án
   const isMaster = new Set(agents.filter(a => a.role === 'master').map(a => a.id));
   const masters = readMasters().filter(m => isMaster.has(m.id));
+  // watch.sh ghi .run/merged.txt: "spec <F-NNN> <nhánh> <master>" / "now <master> <nhánh>" cho nhánh đã vào nhánh chính.
+  // Dòng "Chờ bạn" của Master nói về nhánh đã merge là dòng cũ: không tính là việc chờ chủ dự án nữa
+  const merged = read(path.join(W, '.run', 'merged.txt')).split(/\r?\n/).map(l => l.trim().split(/\s+/)).filter(p => p.length >= 3);
+  for (const m of masters) {
+    const hit = merged.find(p => p[0] === 'now' && p[1] === m.id);
+    if (hit) { m.merged = hit[2]; m.waitOwner = false; }
+  }
   const byId = Object.fromEntries(agents.map(a => [a.id, a]));
   for (const a of agents) {
     const lg = lastLog(a.id);
@@ -228,6 +235,7 @@ function state() {
       .map(l => { const p = l.trim().split(/\s+/); return { start: p[0] || '', end: p[1] || '', what: p.slice(2).join(' ') }; });
   }
   const features = readFeatures();
+  for (const f of features) { const hit = merged.find(p => p[0] === 'spec' && p[1] === f.id); if (hit) f.merged = hit[2]; }
   const owner = [];
   const unknown = new Set();
   for (const f of features) {
@@ -416,7 +424,7 @@ const stVi=x=>ST[x]||x||'?';
 // Vì sao dãy bàn không có Tester: ghi theo làn của tính năng
 const LANE_NOTE={quick:'làn nhanh: Master tự kiểm, không có Tester'};
 // Nhãn trạng thái của tính năng / file: draft chỉ là "chờ bạn duyệt" khi to: owner; còn lại Master đang làm rõ
-const stOf=o=>o.status==='draft'&&o.to!=='owner'?'đang làm rõ':stVi(o.status);
+const stOf=o=>o.merged&&o.status==='delivered'?'đã merge, chờ Master dọn':o.status==='draft'&&o.to!=='owner'?'đang làm rõ':stVi(o.status);
 // Chủ dự án cần làm gì với một file to: owner
 function ownerAction(o){
  if(o.kind==='spec'&&o.status==='acceptance')return{act:'Đã làm xong, chờ bạn nghiệm thu',how:'Thử theo hướng dẫn bên dưới. Ổn thì nói với Master câu này; chưa ổn thì nói rõ chỗ chưa đạt.',say:'đạt'};
@@ -1043,6 +1051,7 @@ function watchLine(active){
  return '';
 }
 function masterLine(m){const old=Date.now()-m.at>2*3600e3;
+ if(m.merged)return 'MASTER '+m.id+': '+m.text+' → '+m.merged+' đã merge, chờ '+m.id+' dọn (không còn chờ bạn)';
  return 'MASTER '+m.id+': '+m.text+(old?' (không đổi từ '+hm(m.at)+', phiên có thể đã đóng)':' ('+hm(m.at)+')')}
 function banner(){
  const b=$('#banner');b.replaceChildren();b.className='pix banner';

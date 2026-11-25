@@ -52,5 +52,20 @@
       "Bash(git push * -f *)",
       "Bash(git push * --force-with-lease*)"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/workflow/hooks/guard-root.cjs\"",
+            "timeout": 10,
+            "statusMessage": "Kiểm tra lệnh git ở thư mục gốc"
+          }
+        ]
+      }
+    ]
   }
 }

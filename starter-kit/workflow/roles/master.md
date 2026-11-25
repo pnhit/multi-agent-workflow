@@ -32,6 +32,8 @@ id: F-001
 title: …
 lane: full             # quick | full (mục 2)
 status: draft          # draft | review | in_dev | acceptance | delivered (đã push, chờ MR merge) | done
+delivery:              # nhánh giao hàng (ví dụ feat/vod-slug), ghi khi push; watch.sh dựa vào đây để biết MR đã merge chưa
+server:                # dev server đang chạy cho tính năng, ví dụ "4334 ../<dự án>-wt/F-001-integration"; xoá khi tắt
 to: owner
 master: master-01
 ---
@@ -134,11 +136,12 @@ Coder vẫn hỏi được (câu hỏi `to: <bạn>`, bước 4–6). Câu hỏi
 - **Thư mục gốc là của chủ dự án.** Có thể đang có nhiều phiên Master cùng chạy trên một thư mục gốc. Đổi nhánh ở đó là đổi code dưới chân mọi người: file đang sửa dở của Master khác, dev server của chủ dự án, hook đọc nhánh của thư mục gốc. Vì vậy:
   - mọi việc code, rebase, dựng nhánh giao hàng, sửa sau giao hàng đều làm trong **worktree riêng** (`../<tên-dự-án>-wt/…`);
   - **không** `git switch`, `checkout`, `rebase`, `merge`, `reset`, `stash` ở thư mục gốc. Ngoại lệ duy nhất là gộp ở máy khi `DELIVERY=merge` (mục "Giao hàng"), và chỉ khi không có Master nào khác đang mở;
-  - thư mục gốc vẫn là nơi đọc, ghi các file trong `workflow/` (`AGENTS.md` mục 4).
+  - thư mục gốc vẫn là nơi đọc, ghi các file trong `workflow/` (`AGENTS.md` mục 4);
+  - hook `workflow/hooks/guard-root.cjs` (Claude Code) chặn các lệnh đó khi chúng nhắm vào thư mục gốc. Đưa thư mục gốc về `<nhánh chính>` (`git switch <nhánh chính>`) vẫn được. Gặp hook chặn thì làm trong worktree, đừng tìm cách khác.
 - **Đầu mỗi yêu cầu, kiểm `watch.sh` còn sống:** dòng đầu của `workflow/.run/watch.beat` là giờ (giây epoch) lần quét cuối. Không có file, hoặc cũ hơn 3 chu kỳ quét (mặc định 90 giây), thì ghi `.now` *"Chờ bạn: watch.sh đã dừng"* và báo chủ dự án chạy lại: `sh workflow/watch.sh --restart`. Khi `watch.sh` chết thì không còn gì khác báo cho chủ dự án biết.
 
 - **Cho monitor biết bạn đang làm gì**, ở mọi làn, kể cả khi chưa có file nào trong `workflow/`. Ghi đè file `workflow/.run/<ID của bạn>.now` một dòng, mỗi khi đổi giai đoạn:
-  - đang làm: *"Đang làm rõ: thêm cấu hình app (F-003)"*, *"Làn trực tiếp SG-30027, nhánh fix/…"*, *"Đang tích hợp F-003"*;
+  - đang làm: *"Đang làm rõ: thêm cấu hình app (F-003)"*, *"Làn trực tiếp SG-30027, nhánh fix/…"*, *"Đang tích hợp F-003"*. Làn trực tiếp và review MR **luôn nêu tên nhánh đầy đủ** (ví dụ `fix/slug-min-length-sg30160`): `watch.sh` đọc tên nhánh trong dòng này để biết nhánh đã merge chưa;
   - chờ chủ dự án thì **bắt đầu bằng "Chờ bạn:"**: *"Chờ bạn: xác nhận làn"*, *"Chờ bạn: trả lời 2 câu hỏi về F-003"*. Monitor hiện đỏ những dòng này;
   - xong việc, không còn gì làm: ghi file thành rỗng.
 
@@ -179,7 +182,8 @@ Coder vẫn hỏi được (câu hỏi `to: <bạn>`, bước 4–6). Câu hỏi
     - **Chỉ tách nhiều việc khi chạy song song được** (`files` không chồng nhau, mỗi việc một Coder). Phần nối tiếp nhau của cùng một Coder thì để **một việc nhiều bước** (ghi trong "Kế hoạch các bước", mỗi bước một commit): một lượt Tester cho cả việc, khỏi đọc lại từ đầu nhiều lần.
     - Vẫn cần tách việc nối tiếp (để có điểm dừng, hay khác Coder): việc sau tạo nhánh từ nhánh việc trước (`depends_on`). Các việc trước đặt `tester:` là **bạn**: bạn kiểm nhanh như làn nhanh bước 9 (đọc diff, chạy test) rồi đặt `verified`. Chỉ **việc cuối** có `tester:` là Tester, và Tester kiểm **cả chuỗi** (diff từ `<nhánh chính>`, mọi tiêu chí của các việc trong chuỗi).
     - Không có bước kiểm tích hợp riêng của Tester: bản tích hợp do bạn chạy toàn bộ test (bước 10c), chủ dự án nghiệm thu;
-  - **Trình duyệt dùng chung** (tính năng có giao diện): ngay khi mở cho làm (bước 7), chạy sản phẩm ở **cổng cố định** ghi trong `DECISIONS.md` và nhờ chủ dự án **đăng nhập một lần**. Để server chạy tới khi nghiệm thu, đừng tắt giữa các lượt. Ai cần chạy code của worktree khác thì tắt server đang chạy rồi chạy lại **đúng cổng đó** (`--strictPort`): phiên đăng nhập vẫn còn. Mỗi lúc chỉ một bản chạy, nên các bước kiểm trên trình duyệt làm lần lượt. Agent không bao giờ tự nhập mật khẩu (`AGENTS.md` mục 6): trang đòi đăng nhập thì dừng phần trình duyệt và báo bạn, bạn nhờ chủ dự án. Dùng công cụ xem trước của ứng dụng Claude thì đặt `"autoPort": false` trong `.claude/launch.json` để nó không tự đổi cổng;
+  - **Sửa giao diện gom một lần:** tính năng có giao diện, sau lượt code đầu tiên thì nhờ chủ dự án **soi cả màn hình một lượt** và nói hết các chỗ chưa ưng, bạn gom thành một danh sách trong file việc rồi giao Coder một lần. Đừng giao từng chỗ nhỏ (cỡ chữ, màu, khoảng cách) thành nhiều lượt 2–3 phút: mỗi lượt là một lần gọi, đọc lại, kiểm lại;
+  - **Trình duyệt dùng chung** (tính năng có giao diện): ngay khi mở cho làm (bước 7), chạy sản phẩm ở **cổng cố định** ghi trong `DECISIONS.md` (ghi vào dòng `server:` của `SPEC.md`) và nhờ chủ dự án **đăng nhập một lần**. Để server chạy tới khi nghiệm thu, đừng tắt giữa các lượt. Ai cần chạy code của worktree khác thì tắt server đang chạy rồi chạy lại **đúng cổng đó** (`--strictPort`): phiên đăng nhập vẫn còn. Mỗi lúc chỉ một bản chạy, nên các bước kiểm trên trình duyệt làm lần lượt. Agent không bao giờ tự nhập mật khẩu (`AGENTS.md` mục 6): trang đòi đăng nhập thì dừng phần trình duyệt và báo bạn, bạn nhờ chủ dự án. Dùng công cụ xem trước của ứng dụng Claude thì đặt `"autoPort": false` trong `.claude/launch.json` để nó không tự đổi cổng;
   - ghi mục **"Ngữ cảnh từ Master"** trong mỗi việc: những gì bạn đã biết (file, hàm, chỗ cần sửa, test liên quan), để Coder không phải đọc lại từ đầu;
   - làn đủ: **chọn Tester khác model với Coder** của việc đó (xem cột cuối `agents.txt` và model trong `.claude/agents/`), tốt hơn nữa là khác công cụ (Codex, Gemini, Antigravity). Hai model giống nhau dễ mù cùng một chỗ. Không có lựa chọn khác thì vẫn giao, và ghi điều đó vào "Báo cáo".
 - **Trả lời câu hỏi:** chỉ khi **dẫn được nguồn**. Đổi phạm vi (thêm, bớt yêu cầu) thì luôn hỏi chủ dự án. Gom các câu cần chủ dự án lại, hỏi một lần, kèm phương án và đề xuất của bạn.
@@ -206,7 +210,7 @@ Coder vẫn hỏi được (câu hỏi `to: <bạn>`, bước 4–6). Câu hỏi
   - xong thì sang bước 11.
 - **Báo cáo** (bước 11, và cuối làn trực tiếp). Trước khi viết: xoá worktree của Coder, Tester (giữ các nhánh). **Giữ worktree tích hợp** (làn trực tiếp: worktree `direct-…`) và chạy sản phẩm từ đó ở cổng cố định, để chủ dự án thử mà không phải đổi nhánh ở thư mục gốc. Muốn xem code trong trình soạn thảo thì chủ dự án mở thư mục worktree đó. Xoá worktree khi giao hàng xong.
 
-  Xoá worktree trên Windows báo `failed to delete … Invalid argument` (thường do `node_modules` lớn, hay dev server còn chạy từ đó): tắt mọi tiến trình chạy từ worktree, `rm -rf <worktree>`, rồi `git worktree prune`. Mục "Báo cáo" trong `SPEC.md` **bắt buộc có đủ**, rồi dán nguyên mục đó vào phiên chat:
+  Xoá worktree theo mục "Dọn worktree" bên dưới (đừng `rm -rf`: có thể xoá nhầm `node_modules` thật qua junction). Mục "Báo cáo" trong `SPEC.md` **bắt buộc có đủ**, rồi dán nguyên mục đó vào phiên chat:
   ```
   ## Báo cáo
   - Nhánh: <F-NNN>/integration, từ <nhánh chính>, <n> commit: <ref> <title>; …
@@ -223,15 +227,32 @@ Coder vẫn hỏi được (câu hỏi `to: <bạn>`, bước 4–6). Câu hỏi
   - **`DELIVERY=merge`** (gộp ở máy). Đây là việc duy nhất được làm ở thư mục gốc, nên chỉ làm khi an toàn:
     - thư mục gốc đang ở `<nhánh chính>`, và không có `workflow/.run/master-NN.now` nào khác rỗng ngoài của bạn. Không thoả thì không làm, đưa chủ dự án lệnh để tự chạy;
     - tạo khoá `workflow/.merging`; đã có khoá thì chờ, vì Master khác đang gộp;
-    - `git -C <thư mục gốc> merge --ff-only <F-NNN>/integration`: lịch sử thẳng, mỗi việc một commit;
+    - `WORKFLOW_ROOT_OK=1 git -C <thư mục gốc> merge --ff-only <F-NNN>/integration`: lịch sử thẳng, mỗi việc một commit (`WORKFLOW_ROOT_OK=1` cho hook chặn thư mục gốc biết đây là việc được phép);
     - xoá khoá. Push `<nhánh chính>` theo mục "Push". Đặt `SPEC.md` `status: done`.
   - **`DELIVERY=mr`** (team không cho commit thẳng lên nhánh chính): **không gộp gì vào `<nhánh chính>`**. `git branch <MR_PREFIX><tên-ngắn> <F-NNN>/integration`, rồi push nhánh đó theo mục "Push", để chủ dự án mở MR/PR vào `<nhánh chính>`. Push xong: `SPEC.md` `status: delivered`, `to: none`, ghi tên nhánh giao hàng vào mục "Báo cáo". Chưa `done`, vì MR chưa vào nhánh chính (mục "Theo dõi MR").
-  - Cả hai cách: xoá các nhánh việc và nhánh tích hợp (`git branch -D`: nhánh việc đã được gom thành commit khác nên `-d` không nhận). Còn worktree nào của tính năng thì `git worktree remove`.
+  - Cả hai cách: xoá các nhánh việc và nhánh tích hợp (`git branch -D`: nhánh việc đã được gom thành commit khác nên `-d` không nhận). Còn worktree nào của tính năng thì dọn theo mục "Dọn worktree". `DELIVERY=mr` thì giữ nhánh giao hàng ở máy tới khi `done`: GitLab, GitHub thường xoá nhánh xa sau khi merge, nhánh ở máy là thứ còn lại để biết MR đã vào.
+- **Dọn worktree** (khi xong việc, hay khi `done`), **đúng thứ tự**:
+  1. tắt dev server chạy từ worktree đó (cổng ghi ở dòng `server:` trong `SPEC.md`), rồi xoá dòng `server:`. Server còn chạy thì thư mục bị giữ, xoá báo "Device or resource busy";
+  2. `node_modules` (hay thư mục khác) là **junction / symlink** trỏ về thư mục thật thì gỡ riêng nó trước, bằng lệnh chỉ gỡ liên kết: Windows `cmd //c rmdir "<worktree>\node_modules"`, máy khác `rm <worktree>/node_modules` (không `-r`). **Không bao giờ `rm -rf` một thư mục có junction bên trong**: có thể đi xuyên junction và xoá luôn thư mục đích;
+  3. `git worktree remove <worktree>` (còn file chưa commit mà chắc chắn bỏ được thì thêm `--force`);
+  4. Windows vẫn báo `Invalid argument` / thư mục còn sót: kiểm lại bước 1–2, xoá phần còn lại khi không còn junction nào bên trong, rồi `git worktree prune`;
+  5. `git branch -D` các nhánh của tính năng (nhánh việc, nhánh tích hợp; nhánh giao hàng chỉ khi đã `done`).
   - `WORKFLOW_IN_GIT=yes`: commit các file trong `workflow/` của tính năng lên `<nhánh chính>` (với `DELIVERY=mr` thì commit lên nhánh `<MR_PREFIX><tên-ngắn>`). `WORKFLOW_IN_GIT=no`: không commit file nào trong `workflow/`, vì chúng chỉ có trên máy chủ dự án.
-- **Theo dõi MR** (`DELIVERY=mr`). Đầu mỗi phiên, và khi chủ dự án bảo "xử lý việc đang chờ":
-  - `git fetch origin`, rồi `git branch -r --merged origin/<nhánh chính>`: nhánh giao hàng của tính năng `delivered` nào đã có trong danh sách thì MR đã vào. Đặt `SPEC.md` `status: done`, xoá worktree, nhánh còn lại của tính năng đó;
-  - team gộp MR kiểu **squash** thì lệnh trên không nhận ra (commit trên nhánh chính là commit mới). Khi đó xem nhánh xa đã bị xoá chưa (`git ls-remote --heads origin <nhánh>` rỗng), hay hỏi chủ dự án;
-  - **Việc treo:** có việc phải chờ một MR khác vào nhánh chính rồi mới làm (ví dụ sửa tài liệu khi tính năng kia vào) thì ghi vào `SPEC.md` mục `## Việc treo`, mỗi dòng `- chờ <nhánh>: <việc cần làm>`. `watch.sh --lint` báo khi `<nhánh>` đã vào `origin/<nhánh chính>`: làm việc đó rồi xoá dòng.
+- **Theo dõi MR** (`DELIVERY=mr`):
+  - push xong thì ghi `delivery: <nhánh giao hàng>` trong `SPEC.md` (làn trực tiếp: tên nhánh nằm trong dòng `.now`);
+  - `watch.sh` tự `git fetch` mỗi 10 phút và đối chiếu các nhánh đó. Nhánh nào đã vào nhánh chính thì monitor ghi "đã merge, chờ <Master> dọn" (không tính là việc chờ chủ dự án) và `watch.sh --lint` báo. **Đừng tự `git fetch` theo lịch**: nhiều phiên cùng fetch trên Windows dễ va nhau (`unable to unlink …`); chỉ fetch khi sắp dựng nhánh mới;
+  - một nhánh **đã merge** khi một trong các điều sau đúng (đây cũng là cách `watch.sh` dò):
+    - nhánh **ở máy** (hay nhánh xa, nếu còn) đã nằm trong `origin/<nhánh chính>`: `git merge-base --is-ancestor <nhánh> origin/<nhánh chính>`. Đừng chỉ dựa vào `git branch -r --merged`: GitLab, GitHub thường xoá nhánh xa sau khi merge;
+    - MR gộp kiểu **squash**: gộp thử ảo `git merge-tree --write-tree origin/<nhánh chính> <nhánh>` cho ra đúng cây của nhánh chính (`git rev-parse origin/<nhánh chính>^{tree}`), tức mọi thay đổi của nhánh đã có trong đó. Đừng dùng `git cherry`: nó so từng commit, nên không nhận ra squash từ nhiều commit;
+  - đầu mỗi phiên, và khi chủ dự án bảo "xử lý việc đang chờ": tính năng nào `delivered` mà nhánh đã merge thì đặt `status: done`, dọn theo mục "Dọn worktree", ghi `.now` rỗng nếu không còn gì làm;
+  - **Việc treo:** có việc phải chờ một MR khác vào nhánh chính rồi mới làm (ví dụ sửa tài liệu khi tính năng kia vào) thì ghi vào `SPEC.md` mục `## Việc treo`, mỗi dòng `- chờ <nhánh>: <việc cần làm>`. `watch.sh --lint` báo khi `<nhánh>` đã merge (theo cách trên): làm việc đó rồi xoá dòng.
+- **Review MR** (chủ dự án nhờ xem một MR): ghi vào `workflow/reviews/MR-<số>.md`, để lần review sau không phải tìm lại trong chat:
+  ```
+  # MR !<số>: <tiêu đề>
+  Nhánh: <nhánh>   Lượt 1: commit <sha> (<ngày>)   Lượt 2: commit <sha> (<ngày>)
+  | # | Mức (phải sửa / nên sửa / gợi ý) | File:dòng | Tóm tắt | Trạng thái (mở / đã sửa / bỏ qua) |
+  ```
+  Review lại thì chỉ xem `git diff <commit đã ghi>..<nhánh>` và cập nhật cột trạng thái. `.now` ghi *"Review MR !<số>, nhánh <nhánh>"*.
 - **Sửa sau giao hàng:** nhánh giao hàng đã push, MR chưa gộp, chủ dự án thấy lỗi nhỏ (giao diện, chữ, một điều kiện): làm như **làn trực tiếp ngay trên nhánh giao hàng**, trong worktree (worktree tích hợp chuyển sang nhánh giao hàng, hay tạo mới `git worktree add ../<tên-dự-án>-wt/fix-<tên> <nhánh giao hàng>`), không ở thư mục gốc: sửa, chạy test, kiểm trên trình duyệt, thêm **một commit mới** (không `--amend` hay rebase, vì nhánh đã push), ghi thêm một dòng vào mục "Báo cáo" của `SPEC.md`, rồi xin push. Lỗi lớn, hay cần quyết định hành vi mới thì mở tính năng mới.
 - **Push** (sau giao hàng, hoặc khi chủ dự án yêu cầu): chỉ khi **chủ dự án cho phép đúng lần push đó trong phiên chat** (`AGENTS.md` mục 6).
   - Hỏi một câu nêu rõ nhánh và remote, kèm số commit sẽ lên: *"Push `feat/x` (2 commit) lên `origin`?"*. Chủ dự án chưa trả lời, hay trả lời không rõ, thì không push; báo lệnh để chủ dự án tự chạy: `git push -u origin <nhánh>`.
@@ -243,6 +264,7 @@ Coder vẫn hỏi được (câu hỏi `to: <bạn>`, bước 4–6). Câu hỏi
   - Lời gọi gồm: **ID của agent** (ví dụ `coder-01`), danh sách file đang chờ nó, **đường dẫn tuyệt đối của thư mục gốc**, và câu *"Làm theo AGENTS.md và workflow/roles/<vai>.md"*. Kèm luôn ngữ cảnh bạn đã có mà file việc chưa ghi, để nó không phải tìm lại. **Trỏ đúng chỗ cần đọc** (`SPEC.md` mục nào, câu hỏi nào, file code nào), đừng bảo đọc lại cả tài liệu: mỗi lượt đọc lại từ đầu tốn hàng trăm nghìn token.
   - **Vòng sửa lỗi, kiểm lại: gửi tiếp cho chính subagent vừa làm** (công cụ gửi tin cho agent đã chạy, ví dụ `SendMessage` trong Claude Code), để nó còn nguyên ngữ cảnh. Chỉ gọi mới khi ngữ cảnh của nó đã quá lớn, hay đổi người làm.
   - Không thấy subagent `tester` (hay `coder`) trong danh sách agent của phiên: thường do phần đầu file trong `.claude/agents/` hỏng (`sh workflow/watch.sh --lint` báo). Báo chủ dự án; tạm thời gọi agent đa dụng với đúng model đó (ví dụ opus cho Tester) và dặn *"Bạn là tester-01, làm theo AGENTS.md và workflow/roles/tester.md"*.
-  - **Ngay trước khi gọi**, ghi file `workflow/.run/<ID>.sub` một dòng `<F-NNN> <T-xx>` (ví dụ `F-001 T-01`); **gọi xong**, ghi lại file đó thành rỗng, và **ghi thêm** một dòng vào cuối `workflow/.run/<ID>.hist`: `<giờ bắt đầu> <giờ xong> <F-NNN> <T-xx> <kết quả ngắn>` (giờ dạng `2026-11-21T09:40`, ví dụ `2026-11-21T09:40 2026-11-21T10:02 F-009 T-01 in_test`). Monitor nhờ `.sub` biết agent đang chạy, nhờ `.hist` hiện các lần chạy gần đây.
+  - **Ngay trước khi gọi**, lấy giờ thật bằng lệnh (`date +%Y-%m-%dT%H:%M`, đừng ghi theo trí nhớ) và ghi file `workflow/.run/<ID>.sub` một dòng `<F-NNN> <T-xx>` (ví dụ `F-001 T-01`). **Gọi xong**, ghi lại file đó thành rỗng, lấy giờ thật lần nữa, và **ghi thêm** một dòng vào cuối `workflow/.run/<ID>.hist`: `<giờ bắt đầu> <giờ xong> <F-NNN> <T-xx> <kết quả ngắn>` (ví dụ `2026-11-21T09:40 2026-11-21T10:02 F-009 T-01 in_test`). Monitor nhờ `.sub` biết agent đang chạy, nhờ `.hist` hiện các lần chạy gần đây; `watch.sh --lint` báo dòng có giờ xong trước giờ bắt đầu.
+  - Tính năng có giao diện: lời gọi nêu luôn **server đang chạy** (cổng, worktree, đã đăng nhập chưa) để Coder, Tester dùng lại, không tự mở server mới; cần chạy bản của worktree khác thì theo luật cổng cố định (mục "Trình duyệt dùng chung").
   - Subagent làm xong thì đổi `to:` như agent thường; bạn đọc lại file rồi đi tiếp. Các việc không chồng `files` thì gọi song song được.
 - Agent chế độ `auto`, `window`, `manual` do `watch.sh` lo: bạn chỉ cần đổi `to:` đúng.

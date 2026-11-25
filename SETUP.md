@@ -32,7 +32,8 @@ CLAUDE.md                  Claude Code tự đọc: nạp sẵn AGENTS.md (dòng
 GEMINI.md                  Gemini CLI tự đọc: nạp sẵn AGENTS.md
 .gitattributes             giữ script .sh và hook xuống dòng LF
 .claude/
-  settings.json            quyền cho Claude Code: cho chạy git và lệnh test thường gặp, chặn --force, --no-verify, chặn đọc .env
+  settings.json            quyền cho Claude Code: cho chạy git và lệnh test thường gặp, chặn --force, --no-verify, chặn đọc .env;
+                           đăng ký hook chặn đổi nhánh ở thư mục gốc (workflow/hooks/guard-root.cjs)
   agents/                  subagent Coder, Tester mà Master tự gọi
 workflow/
   agents.txt               danh sách agent và cách đánh thức (bạn điền ở bước 4)
@@ -41,7 +42,9 @@ workflow/
   watch.sh                 theo dõi file, đánh thức agent, sinh STATUS.md
   monitor.js               trang theo dõi local
   notify.sh                gửi Telegram
-  hooks/                   hook git chặn push thẳng lên nhánh chính (pre-push) và script cài (install.sh)
+  hooks/                   hook git chặn push thẳng lên nhánh chính (pre-push) và script cài (install.sh);
+                           guard-root.cjs: hook Claude Code chặn agent switch, checkout, rebase, reset, stash, merge
+                           ở thư mục gốc (thư mục gốc là của bạn; agent làm trong worktree)
   .gitignore               bỏ qua các file do watch.sh sinh ra và workflow/.env
 ```
 
@@ -88,7 +91,7 @@ Dùng khi repo là của team và bạn chỉ muốn thử workflow trên máy m
 ' >> .git/info/exclude
    ```
 2. **Team đã commit `CLAUDE.md`:** đừng sửa nó. Chép `CLAUDE.md` của bộ khởi đầu thành **`CLAUDE.local.md`**. Claude Code tự nạp `CLAUDE.local.md` ngay sau `CLAUDE.md`, kể cả cho subagent, và dòng `@AGENTS.md` trong đó vẫn có tác dụng.
-3. **Team đã commit `.claude/settings.json`:** đừng sửa nó. Gộp `allow` và `deny` của bộ khởi đầu vào **`.claude/settings.local.json`** (file cá nhân, thường đã bị ignore; nếu chưa thì thêm `/.claude/settings.local.json` vào `.git/info/exclude`).
+3. **Team đã commit `.claude/settings.json`:** đừng sửa nó. Gộp `allow`, `deny` và khối `hooks` (hook `guard-root.cjs`) của bộ khởi đầu vào **`.claude/settings.local.json`** (file cá nhân, thường đã bị ignore; nếu chưa thì thêm `/.claude/settings.local.json` vào `.git/info/exclude`). Hook của team và hook của workflow chạy cùng nhau, không đè nhau.
 4. Không chép `.gitattributes` của bộ khởi đầu: file workflow không lên git nên không cần.
 5. Trong `workflow/project.conf`: `WORKFLOW_IN_GIT=no`, thường kèm `DELIVERY=mr` và `BASE_BRANCH` đúng nhánh của team.
 6. Chạy `sh workflow/hooks/install.sh` (tự xử lý husky như trên).
@@ -322,7 +325,8 @@ Từ đây (làn đủ; làn nhanh bỏ bước duyệt và khảo sát):
 | Có việc mới cho agent `window` mà cửa sổ của nó đang mở | `watch.sh` báo. Bạn gõ vào cửa sổ đó: *"Xử lý việc đang chờ"* |
 | Báo cáo xong (`SPEC.md` có `to: owner`) | Báo cáo luôn có: nhánh, danh sách file đã đổi, lệnh xem diff, lệnh chạy test, cách thử. Bạn thử trên server **Master đã chạy sẵn từ worktree tích hợp** (địa chỉ ghi trong báo cáo); xem code thì mở thư mục worktree đó trong trình soạn thảo. Đó đúng là bản sẽ vào `main`, mỗi việc một commit. Rồi nói **"đạt"** hoặc chỉ ra chỗ chưa đạt. Không cần `git switch` ở thư mục dự án: thư mục đó để yên cho bạn và các phiên Master khác |
 | Master đã gộp code | Master hỏi có push không. Đồng ý thì Master push; hoặc **bạn tự push:** `git push origin main` (với `DELIVERY=mr` thì push nhánh `feat/…` rồi mở MR) |
-| Đã push nhánh MR (`DELIVERY=mr`) | Tính năng ở trạng thái **đã giao, chờ merge** (`delivered`). Khi MR vào nhánh chính, Master thấy ở lần "xử lý việc đang chờ" kế tiếp và chuyển sang **xong** (`done`) |
+| Đã push nhánh MR (`DELIVERY=mr`) | Tính năng ở trạng thái **đã giao, chờ merge** (`delivered`). `watch.sh` tự `git fetch` mỗi 10 phút (`--fetch 10`) và dò nhánh đã merge, kể cả khi nhánh xa đã bị xoá hay MR gộp kiểu squash. Merge rồi thì monitor ghi "đã merge, chờ Master dọn" và **không tính** vào số việc chờ bạn; Master chuyển sang **xong** (`done`) và dọn worktree, nhánh |
+| Nhờ Master review MR | Master ghi kết quả vào `workflow/reviews/MR-<số>.md` (commit đã xem, từng điểm và trạng thái). Lần review sau chỉ xem phần mới từ commit đã ghi |
 
 **Lời nhắn cho agent `manual`**, nếu máy không chép được vào clipboard (lời nhắn cũng được lưu ở `workflow/.run/<ID>.prompt`):
 ```text

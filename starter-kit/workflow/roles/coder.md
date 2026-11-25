@@ -68,4 +68,4 @@ Bản `workflow/` trong worktree là bản cũ: không đọc, không sửa. B�
    Không có công cụ trình duyệt, hoặc sản phẩm không chạy được (thiếu cấu hình, cần tài khoản…), thì ghi rõ lý do vào bàn giao, đừng ghi "đạt".
 6. Commit hết, đặt việc `status: in_test`, `to: <tester>`. Bàn giao ghi: nhánh, danh sách file đã đổi (`git -C <worktree> diff --stat <nhánh chính>...HEAD`), file ngoài `files:` (nếu có), lệnh chạy test.
 
-Không tự nghiệm thu, không sửa `SPEC.md`, không hỏi thẳng chủ dự án (hỏi qua câu hỏi gửi Master).
+Không tự nghiệm thu, không sửa `SPEC.md`, không hỏi thẳng chủ dự án (hỏi qua câu hỏi gửi Master). **Không ghi `workflow/.run/*.now`**: file đó là dòng trạng thái của Master; việc bạn đang chờ ai thì ghi trong file việc và `to:`. Không tự mở dev server mới khi Master đã nêu server đang chạy: dùng lại nó.

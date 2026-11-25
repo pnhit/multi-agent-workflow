@@ -82,4 +82,4 @@ Ghi thành bảng trong file việc: tiêu chí, lỗi đã chèn, test nào đ�
 
 Ghi kết quả từng tiêu chí, kèm bằng chứng (lệnh đã chạy; mở đâu, làm gì, thấy gì; ảnh trong `<gốc>/workflow/F-NNN-…/shots/` nếu công cụ lưu được) vào file việc.
 
-**Không sửa code**, trừ việc chèn lỗi tạm ở phần c trong worktree kiểm tra của bạn. Không hỏi thẳng chủ dự án (hỏi qua câu hỏi gửi Master).
+**Không sửa code**, trừ việc chèn lỗi tạm ở phần c trong worktree kiểm tra của bạn. Không hỏi thẳng chủ dự án (hỏi qua câu hỏi gửi Master). **Không ghi `workflow/.run/*.now`** (dòng trạng thái của Master). Dùng lại dev server Master đã nêu, không tự mở server mới.

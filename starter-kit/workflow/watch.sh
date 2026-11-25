@@ -16,6 +16,8 @@
 #   --stale 24       số giờ một file chờ agent mà không đổi thì báo là bất thường. 0 = không kiểm
 #   --port 4300      cổng của trang monitor
 #   --no-monitor     không mở kèm monitor
+#   --fetch 10       cứ bao nhiêu phút thì `git fetch` một lần (để biết MR nào đã merge). 0 = không fetch.
+#                    Chỉ watch.sh fetch theo lịch: nhiều phiên cùng fetch trên Windows dễ va nhau
 #
 # Chạy liên tục thì watch.sh:
 #   - chỉ cho một bản chạy cùng lúc (ghi .run/watch.pid);
@@ -47,6 +49,7 @@ MAXWAKES=6
 TIMEOUT=60
 STALE=24
 PORT=4300
+FETCH=10
 NOMON=0
 STOP=0
 RESTART=0
@@ -63,6 +66,7 @@ while [ $# -gt 0 ]; do
     --stale) need_num "$1" "${2:-}"; shift; STALE="$1" ;;
     --resume) [ -n "${2:-}" ] || { echo "--resume cần ID agent"; exit 1; }; shift; RESUME="$1" ;;
     --port) need_num "$1" "${2:-}"; shift; PORT="$1" ;;
+    --fetch) need_num "$1" "${2:-}"; shift; FETCH="$1" ;;
     --no-monitor) NOMON=1 ;;
     --stop) STOP=1 ;;
     --restart) RESTART=1 ;;
@@ -70,7 +74,7 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-PASS_ARGS="--interval $INTERVAL --max-wakes $MAXWAKES --timeout $TIMEOUT --stale $STALE --port $PORT"
+PASS_ARGS="--interval $INTERVAL --max-wakes $MAXWAKES --timeout $TIMEOUT --stale $STALE --port $PORT --fetch $FETCH"
 [ "$NOMON" = 1 ] && PASS_ARGS="$PASS_ARGS --no-monitor"
 
 [ -f "$AGENTS" ] || { echo "Thiếu $AGENTS. Xem SETUP.md."; exit 1; }
@@ -158,30 +162,93 @@ has_open_question() {
   return 1
 }
 
+BASE=$(sed -n 's/^BASE_BRANCH=//p' "$W/project.conf" 2>/dev/null | tail -n 1 | tr -d '\r" ')
+[ -n "$BASE" ] || BASE=main
+
+# is_merged <nhánh>: in "yes" khi nhánh đã vào nhánh chính, "no" khi chưa, không in gì khi không tìm thấy nhánh.
+# Xét nhánh ở máy trước rồi tới nhánh xa: GitLab, GitHub thường xoá nhánh xa sau khi merge, nhánh ở máy còn lại.
+#   - gộp bằng merge commit: đầu nhánh nằm trong nhánh chính, nhưng không nằm trên dòng cha thứ nhất của nó
+#     (nhánh vừa tạo, chưa có commit nào, cũng "nằm trong" nhánh chính nhưng là chưa merge);
+#   - gộp kiểu squash: nhánh có commit riêng, nhưng gộp thử (ảo) nhánh vào nhánh chính thì nhánh chính không đổi gì:
+#     mọi thay đổi của nhánh đã có trong đó. `git merge-tree --write-tree` (git 2.38+); git cũ hơn thì dùng
+#     `git cherry` (chỉ nhận ra khi squash từ đúng một commit).
+is_merged() {
+  for r in "refs/heads/$1" "refs/remotes/origin/$1"; do
+    git -C "$ROOT" rev-parse -q --verify "$r" >/dev/null 2>&1 || continue
+    for t in "refs/remotes/origin/$BASE" "refs/heads/$BASE"; do
+      git -C "$ROOT" rev-parse -q --verify "$t" >/dev/null 2>&1 || continue
+      tip=$(git -C "$ROOT" rev-parse "$r")
+      if git -C "$ROOT" merge-base --is-ancestor "$r" "$t" 2>/dev/null; then
+        if git -C "$ROOT" rev-list --first-parent --max-count=20000 "$t" | grep -qx "$tip"; then echo no; else echo yes; fi
+        return
+      fi
+      if [ "$(git -C "$ROOT" rev-list --count "$t..$r" 2>/dev/null)" -gt 0 ]; then
+        mt=$(git -C "$ROOT" merge-tree --write-tree "$t" "$r" 2>/dev/null | head -n 1)
+        if [ -n "$mt" ]; then
+          [ "$mt" = "$(git -C "$ROOT" rev-parse "$t^{tree}")" ] && { echo yes; return; }
+        elif ! git -C "$ROOT" cherry "$t" "$r" 2>/dev/null | grep -q '^+'; then echo yes; return
+        fi
+      fi
+      echo no; return
+    done
+    echo no; return
+  done
+}
+
+# branches_in <văn bản>: các tên nhánh có thật (ở máy hay nhánh xa) xuất hiện trong văn bản, mỗi dòng một tên
+branches_in() {
+  printf '%s\n' "$1" | grep -oE '[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)+' | sort -u | while read -r b; do
+    b=${b%.}
+    git -C "$ROOT" rev-parse -q --verify "refs/heads/$b" >/dev/null 2>&1 || \
+      git -C "$ROOT" rev-parse -q --verify "refs/remotes/origin/$b" >/dev/null 2>&1 || continue
+    echo "$b"
+  done
+}
+
+# merged_scan: nhánh giao hàng (dòng delivery: của SPEC.md đang delivered) và nhánh nêu trong dòng .now của Master
+# đã vào nhánh chính. Ghi .run/merged.txt cho monitor: "spec <F-NNN> <nhánh> <master>" hay "now <master> <nhánh>"
+merged_scan() {
+  for fd in "$W"/F-*/; do
+    s="$fd/SPEC.md"; [ -f "$s" ] || continue
+    [ "$(fm "$s" status)" = delivered ] || continue
+    b=$(fm "$s" delivery); [ -n "$b" ] || continue
+    [ "$(is_merged "$b")" = yes ] && echo "spec $(fm "$s" id) $b $(fm "$s" master)"
+  done
+  for nf in "$RUN"/*.now; do
+    [ -f "$nf" ] || continue
+    id=$(basename "$nf" .now); txt=$(head -n 1 "$nf" | tr -d '\r'); [ -n "$txt" ] || continue
+    branches_in "$txt" | while read -r b; do
+      [ "$(is_merged "$b")" = yes ] && echo "now $id $b"
+    done
+  done
+}
+
 # lint: in các trạng thái bất thường, mỗi dòng một chỗ (không in gì là ổn).
 # Cách chuyền lượt bằng to: hỏng nhất ở chỗ một việc không còn ai cầm; hàm này tìm những chỗ đó.
 lint() {
   ids=" owner none $(grep -v '^[[:space:]]*#' "$AGENTS" | awk 'NF {printf "%s ", $1}')"
-  base=$(sed -n 's/^BASE_BRANCH=//p' "$W/project.conf" 2>/dev/null | tail -n 1 | tr -d '\r" ')
-  [ -n "$base" ] || base=main
+  masters=" $(grep -v '^[[:space:]]*#' "$AGENTS" | awk '$2 == "master" {printf "%s ", $1}')"
+  base=$BASE
   busy=""   # "<agent> <master> <tính năng>" của các việc đang chờ agent làm, để tìm ID dùng chung giữa các Master
   for fd in "$W"/F-*/; do
     [ -d "$fd" ] || continue
     fd=${fd%/}
     sst=""; fmaster=""
     [ -f "$fd/SPEC.md" ] && { sst=$(fm "$fd/SPEC.md" status); fmaster=$(fm "$fd/SPEC.md" master); }
-    # Việc treo: "- chờ <nhánh>: <việc>" trong mục "## Việc treo" của SPEC.md; nhánh đã vào nhánh chính thì tới lúc làm
     if [ -f "$fd/SPEC.md" ]; then
+      # Tính năng đã giao: nhánh giao hàng đã merge thì Master đặt done và dọn
+      if [ "$sst" = delivered ]; then
+        b=$(fm "$fd/SPEC.md" delivery)
+        if [ -z "$b" ]; then echo "\`$(basename "$fd")/SPEC.md\`: delivered mà chưa có dòng delivery: <nhánh giao hàng>, không dò được MR đã merge chưa"
+        elif [ "$(is_merged "$b")" = yes ]; then echo "\`$(basename "$fd")/SPEC.md\`: $b đã merge vào $base: ${fmaster:-Master} đặt status: done và dọn worktree, nhánh"
+        fi
+      fi
+      # Việc treo: "- chờ <nhánh>: <việc>" trong mục "## Việc treo" của SPEC.md; nhánh đã vào nhánh chính thì tới lúc làm
       awk '/^## +Việc treo/ { f = 1; next } /^## / { f = 0 } f && /^[-*] *chờ +[^ :]+ *:/' "$fd/SPEC.md" | while IFS= read -r line; do
         b=$(printf '%s' "$line" | sed 's/^[-*] *chờ *\([^ :]*\) *:.*/\1/')
-        for r in "refs/remotes/origin/$b" "refs/heads/$b"; do
-          git -C "$ROOT" rev-parse -q --verify "$r" >/dev/null 2>&1 || continue
-          if git -C "$ROOT" merge-base --is-ancestor "$r" "refs/remotes/origin/$base" 2>/dev/null \
-             || git -C "$ROOT" merge-base --is-ancestor "$r" "refs/heads/$base" 2>/dev/null; then
-            echo "\`$(basename "$fd")/SPEC.md\`: việc treo tới lúc làm, $b đã vào $base: $(printf '%s' "$line" | sed 's/^[-*] *//' | tr -d '\r')"
-          fi
-          break
-        done
+        if [ "$(is_merged "$b")" = yes ]; then
+          echo "\`$(basename "$fd")/SPEC.md\`: việc treo tới lúc làm, $b đã vào $base: $(printf '%s' "$line" | sed 's/^[-*] *//' | tr -d '\r')"
+        fi
       done
     fi
     for f in "$fd/SPEC.md" "$fd"/tasks/*.md "$fd"/questions/*.md "$fd"/bugs/*.md; do
@@ -241,6 +308,23 @@ lint() {
   printf '%s' "$busy" | awk 'NF == 3 { k = $1 SUBSEP $2; if (!(k in seen)) { seen[k] = 1; n[$1]++; ms[$1] = ms[$1] " " $2 } fs[$1] = fs[$1] " " $3 }
     END { for (a in n) if (n[a] > 1) printf "%s|%s|%s\n", a, ms[a], fs[a] }' | while IFS='|' read -r a ms fs; do
     echo "\`agents.txt\`: $a đang có việc dở ở nhiều Master ($(echo $ms | tr ' ' ','): $(echo $fs | tr ' ' ',')). Mỗi ID chỉ làm cho một Master một lúc: giao cho ID khác"
+  done
+  # Dòng .now: chỉ Master ghi; dòng của Master nói về nhánh đã merge thì đã cũ
+  for nf in "$RUN"/*.now; do
+    [ -f "$nf" ] || continue
+    id=$(basename "$nf" .now); txt=$(head -n 1 "$nf" | tr -d '\r'); [ -n "$txt" ] || continue
+    case "$masters" in
+      *" $id "*)
+        branches_in "$txt" | while read -r b; do
+          [ "$(is_merged "$b")" = yes ] && echo "\`.run/$id.now\`: nói về $b, nhánh này đã merge vào $base: dòng trạng thái đã cũ, $id dọn và cập nhật"
+        done ;;
+      *) echo "\`.run/$id.now\`: chỉ Master ghi .now ($id không phải Master trong agents.txt); việc đang chờ ghi vào file việc và to:" ;;
+    esac
+  done
+  # .hist: giờ xong trước giờ bắt đầu (ghi theo trí nhớ thay vì lấy giờ thật)
+  for hf in "$RUN"/*.hist; do
+    [ -f "$hf" ] || continue
+    awk -v f="$(basename "$hf")" 'NF >= 2 && $2 < $1 { printf "`.run/%s`: dòng %d có giờ xong (%s) trước giờ bắt đầu (%s); lấy giờ thật bằng date khi ghi\n", f, NR, $2, $1 }' "$hf" | head -n 3
   done
   # Subagent của Claude Code: giá trị trong phần đầu file có ": " hay " #" mà không đặt trong ngoặc kép thì YAML
   # hỏng, Claude Code lặng lẽ bỏ qua cả agent đó và Master không gọi được
@@ -451,6 +535,8 @@ $(owner_lines "$(echo "$data" | awk -F'|' '$1=="owner"')" | tr -d '`')"
   else
     rm -f "$RUN/owner.sig"
   fi
+  # Nhánh đã merge (cho monitor: dòng "Chờ bạn" cũ thành "đã merge, chờ Master dọn")
+  merged_scan > "$RUN/merged.tmp" 2>/dev/null && mv "$RUN/merged.tmp" "$RUN/merged.txt"
   # Trạng thái bất thường: ghi cho STATUS.md và monitor, báo khi danh sách thay đổi
   lint > "$RUN/lint.txt"
   if [ -s "$RUN/lint.txt" ]; then
@@ -532,6 +618,19 @@ monitor_check() {
 
 beat() { echo "$(date +%s) $INTERVAL $$" > "$RUN/watch.beat"; }
 
+# fetch_if_due: cứ FETCH phút thì `git fetch --prune origin` một lần (có remote origin), để dò MR đã merge.
+# Chỉ watch.sh fetch theo lịch; Master dùng ref nó lấy về. Lỗi thì chỉ báo một dòng, không dừng.
+LAST_FETCH=0
+fetch_if_due() {
+  [ "$FETCH" -gt 0 ] || return 0
+  now=$(date +%s); [ $((now - LAST_FETCH)) -ge $((FETCH * 60)) ] || return 0
+  LAST_FETCH=$now
+  git -C "$ROOT" remote get-url origin >/dev/null 2>&1 || return 0
+  if [ "$HAS_TIMEOUT" = 1 ]; then out=$(timeout 120 git -C "$ROOT" fetch --quiet --prune origin 2>&1)
+  else out=$(git -C "$ROOT" fetch --quiet --prune origin 2>&1); fi
+  [ $? -eq 0 ] || say "git fetch lỗi (sẽ thử lại sau $FETCH phút): $(printf '%s' "$out" | head -n 1)"
+}
+
 STOP_REASON=""; KEEP_MON=0
 on_exit() {
   # Dừng chủ ý (Ctrl+C, --stop) thì dừng cả monitor. Terminal bị đóng thì để monitor sống, hiện đỏ cho chủ dự án thấy
@@ -599,6 +698,7 @@ beat
 say "Bắt đầu theo dõi $W, quét mỗi $INTERVAL giây. Dừng: Ctrl+C, hoặc sh workflow/watch.sh --stop ở terminal khác."
 monitor_start
 while true; do
+  fetch_if_due
   tick
   beat
   monitor_check
