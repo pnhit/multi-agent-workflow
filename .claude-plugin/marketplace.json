@@ -1,0 +1,14 @@
+{
+  "name": "multi-agent-workflow",
+  "owner": {
+    "name": "multi-agent-workflow"
+  },
+  "description": "Workflow multi-agent cho Claude Code (bản Gemini CLI ở plugin/dist/gemini).",
+  "plugins": [
+    {
+      "name": "workflow",
+      "source": "./plugin/dist/claude",
+      "description": "Workflow multi-agent: Master, Coder, Tester phối hợp qua file trong workflow/."
+    }
+  ]
+}

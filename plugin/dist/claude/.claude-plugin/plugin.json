@@ -1,0 +1,5 @@
+{
+  "name": "workflow",
+  "version": "0.1.0",
+  "description": "Workflow multi-agent: Master, Coder, Tester phối hợp qua file trong workflow/. Cài, cập nhật bộ khởi đầu, chặn lệnh git nguy hiểm, lệnh /workflow:*."
+}

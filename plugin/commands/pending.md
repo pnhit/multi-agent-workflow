@@ -1,0 +1,7 @@
+---
+description: Xử lý việc đang chờ (Master, Coder, Tester đọc file trong workflow/ và làm phần của mình)
+argument-hint: "[ID, ví dụ master-02]"
+---
+Xử lý việc đang chờ. {{ARGS}}
+
+Làm theo `AGENTS.md` và `workflow/roles/<vai của bạn>.md`. Chưa rõ ID hay vai của bạn trong phiên này thì hỏi lại chủ dự án, đừng tự nhận.

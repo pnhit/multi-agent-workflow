@@ -24,6 +24,8 @@
 
 ## 1. Chép bộ khởi đầu vào dự án
 
+**Cách nhanh: dùng plugin** (xem [plugin/README.md](plugin/README.md)). Claude Code: `/plugin marketplace add <repo này>`, `/plugin install workflow@multi-agent-workflow`, rồi gõ `/workflow:init` trong dự án. Gemini CLI: `gemini extensions install <bản clone repo này>/plugin/dist/gemini` (cài từ thư mục trên máy, vì extension nằm trong thư mục con của repo), rồi `/workflow:init`. Lệnh này chép bộ khởi đầu dưới đây vào dự án, file đã có thì giữ nguyên và báo để gộp tay (xem "Dự án đã có" bên dưới). Sau này cập nhật bằng `/workflow:upgrade`. Không dùng plugin thì chạy tay `node plugin/scripts/kit.mjs init` tại thư mục dự án (đường dẫn tới repo này), hoặc chép tay như sau.
+
 Chép **toàn bộ nội dung** thư mục [starter-kit/](starter-kit/) vào **thư mục gốc** dự án:
 
 ```
@@ -43,8 +45,9 @@ workflow/
   monitor.js               trang theo dõi local
   notify.sh                gửi Telegram
   hooks/                   hook git chặn push thẳng lên nhánh chính (pre-push) và script cài (install.sh);
-                           guard-root.cjs: hook Claude Code chặn agent switch, checkout, rebase, reset, stash, merge
-                           ở thư mục gốc (thư mục gốc là của bạn; agent làm trong worktree)
+                           guard-root.cjs: hook (Claude Code; Gemini CLI qua extension) chặn agent switch, checkout,
+                           rebase, reset, stash, merge ở thư mục gốc (thư mục gốc là của bạn; agent làm trong worktree),
+                           và chặn --no-verify, push đè ở mọi nơi
   .gitignore               bỏ qua các file do watch.sh sinh ra và workflow/.env
 ```
 

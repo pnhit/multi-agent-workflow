@@ -2,3 +2,5 @@
 *.sh text eol=lf
 # Hook git không có đuôi .sh nhưng cũng là script shell
 starter-kit/workflow/hooks/* text eol=lf
+# Bản sao bộ khởi đầu trong plugin dựng sẵn: hook được chép thẳng vào dự án nên cũng phải LF
+plugin/dist/*/kit/workflow/hooks/* text eol=lf

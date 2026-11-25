@@ -5,3 +5,5 @@ STATUS.md
 .merging
 # Token Telegram (xem notify.sh), không bao giờ đưa lên git
 .env
+# Bản cũ của file workflow, do /workflow:upgrade (kit.mjs upgrade) lưu trước khi ghi đè
+.upgrade-backup/
