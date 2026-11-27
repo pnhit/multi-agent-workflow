@@ -80,6 +80,7 @@ function demoSetup() {
     clear();
     put('agents.txt', [
       'master-01 master manual phiên chat chính', 'master-02 master manual phiên chat song song',
+      'master-03 master manual phiên chat thứ ba', 'master-04 master manual phiên chat thứ tư',
       'coder-01 coder subagent coder', 'coder-02 coder subagent coder', 'coder-03 coder auto claude -p --model sonnet',
       'coder-04 coder subagent coder-pro', 'coder-05 coder subagent coder',
       'tester-01 tester subagent tester', 'tester-02 tester window agy -i', 'tester-03 tester manual Antigravity'].join('\n') + '\n');
@@ -117,6 +118,11 @@ function demoSetup() {
     put(f4 + '/questions/D-01.md', doc({ id: 'D-01', title: 'Gửi lại khi thiết bị offline?', from: 'coder-02', to: 'master-02', status: 'open', task: 'T-02' }));
     put(f4 + '/bugs/B-01.md', doc({ id: 'B-01', title: 'Thiếu tiêu đề', task: 'T-03', from: 'tester-02', to: 'coder-04', status: 'open', kind: 'bug' }));
     put('.run/tester-01.sub', 'F-104 T-02\n');
+    // master-03 làm trực tiếp (không có thư mục tính năng), đang chờ bạn duyệt MR: ngồi dãy "Làm trực tiếp";
+    // master-04 ghi "Chờ bạn" nhưng nhánh đã vào nhánh chính: coi là xong, ngồi phòng chờ
+    put('.run/master-03.now', 'Chờ bạn: duyệt MR fix/vod-paging (làn trực tiếp)\n');
+    put('.run/master-04.now', 'Chờ bạn: feat/media-thumb đã push, chờ MR\n');
+    put('.run/merged.txt', 'now master-04 feat/media-thumb\n');
     put('.run/master-02.now', step === 2 ? 'Đang trả lời câu hỏi D-01 (F-104)\n' : 'Chờ bạn: nghiệm thu F-102\n');
     // cảnh 1: coder-05 được giao việc ở F-101, đi từ cây nước vào bàn
     if (step === 1 || step === 2) { task(f1, 'T-05', 'Ghi log đăng nhập', 'in_progress', 'coder-05', 'coder-05', 'tester-01'); put('.run/coder-05.sub', 'F-101 T-05\n'); }
@@ -233,6 +239,8 @@ function state() {
     a.runIn = [...new Set(((a.sub || a.job).match(/F-\d+/g) || []))];
     const m = masters.find(x => x.id === a.id);
     a.now = m ? m.text : ''; a.nowWait = !!(m && m.waitOwner);
+    // dòng .now nói về nhánh đã vào nhánh chính: việc đó xong rồi, dòng chỉ còn là dòng cũ
+    a.nowMerged = !!(m && m.merged);
     // Lịch sử các lần Master gọi subagent: .run/<id>.hist, mỗi dòng "<bắt đầu> <xong> <F-NNN> <T-xx> <kết quả>"
     a.hist = read(path.join(W, '.run', a.id + '.hist')).split(/\r?\n/).filter(l => l.trim()).slice(-6).reverse()
       .map(l => { const p = l.trim().split(/\s+/); return { start: p[0] || '', end: p[1] || '', what: p.slice(2).join(' ') }; });
@@ -402,7 +410,8 @@ h2{font:700 12.5px ui-monospace,Consolas,monospace;text-transform:uppercase;lett
  .fwText{animation:pop 4.8s ease-out both}@keyframes pop{0%{transform:translate(-50%,-50%) scale(.3);opacity:0}12%{transform:translate(-50%,-50%) scale(1.12);opacity:1}20%{transform:translate(-50%,-50%) scale(1)}85%{opacity:1}100%{transform:translate(-50%,-50%) scale(1);opacity:0}}
  .fish{animation:swim 7s ease-in-out infinite;transform-box:fill-box;transform-origin:center}.fish.f2{animation-duration:9s;animation-delay:-4s}
  @keyframes swim{0%{transform:translateX(0)}45%{transform:translateX(36px)}50%{transform:translateX(36px) scaleX(-1)}95%{transform:translateX(0) scaleX(-1)}100%{transform:translateX(0)}}
- .bubl circle{animation:rise 2.4s linear infinite}.bubl circle:nth-child(2){animation-delay:.8s}.bubl circle:nth-child(3){animation-delay:1.6s}@keyframes rise{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-22px);opacity:0}}}
+ .bubl circle{animation:rise 2.4s linear infinite}.bubl circle:nth-child(2){animation-delay:.8s}.bubl circle:nth-child(3){animation-delay:1.6s}@keyframes rise{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-22px);opacity:0}}
+ .ppball{animation:pp 1.3s linear infinite alternate}@keyframes pp{0%{transform:translate(0,0)}25%{transform:translate(12px,-7px)}50%{transform:translate(24px,0)}75%{transform:translate(36px,-7px)}100%{transform:translate(48px,0)}}}
 /* chú thích: bảng nổi góc dưới bên trái, mở bằng nút ❔ CHÚ THÍCH trên đầu trang */
 button.badge{cursor:pointer;color:var(--fg);font-family:ui-monospace,Consolas,monospace}
 button.badge[aria-expanded="true"]{background:var(--waitbg);color:var(--wait)}
@@ -415,6 +424,9 @@ td{padding:3px 6px;border-top:1px dashed var(--line);vertical-align:top}
 td:last-child{white-space:nowrap}
 .sq{display:inline-block;width:10px;height:10px;border:1px solid var(--ink);margin-right:6px;vertical-align:-1px}
 #detail{position:fixed;right:16px;bottom:16px;width:min(460px,calc(100% - 32px));max-height:70vh;overflow:auto;display:none;z-index:5}
+#detail ul{margin:4px 0 6px;padding-left:18px;font-size:13px}#detail li{margin:1px 0}
+#detail .mfeat{border-top:1px dashed var(--line);padding:6px 0 2px}#detail .mtitle{font-weight:700;margin:2px 0}
+#detail .mnow{font-weight:600}#detail .mwait{color:var(--bad);font-weight:700}
 #detail pre{white-space:pre-wrap;font-size:12px;background:var(--bg);border:1px solid var(--line);padding:8px;max-height:280px;overflow:auto}
 #detail button{float:right;font:inherit;font-size:13px;border:2px solid var(--ink);background:var(--paper);color:var(--fg);cursor:pointer;box-shadow:2px 2px 0 var(--ink)}
 </style></head>
@@ -539,7 +551,31 @@ function playCorner(d0,laneB){let s,y0;
  if(LW>=290){s=aquarium(L0+10,d0+70)+arcade(L0+96,d0+70)+vending(L0+138,d0+70)+foosball(L0+190,d0+70);y0=d0+136}
  else{s=aquarium(L0+10,d0+66)+arcade(L0+100,d0+66)+foosball(L0+10,d0+132)+vending(L0+96,d0+132);y0=d0+200}
  s+=dogBed(BED_X,laneB-4)+plantBig(LR-44,laneB-8);
- for(let y=y0,i=0;y<=laneB-56;y+=66,i++)s+=i%2?bookshelf(L0+10,y-56,48,56):plantBig(L0+32,y);
+ // còn chỗ thì lần lượt: góc cà phê, bóng bàn, góc đọc sách; hết thì xen kẽ cây và kệ sách
+ const mods=[cafeRow,pingRow,nookRow];
+ for(let y=y0,i=0;y<=laneB-20;y+=70,i++)s+=i<mods.length?mods[i](y):i%2?bookshelf(L0+10,y-56,48,56):plantBig(L0+32,y);
+ return s}
+// Góc cà phê: các bàn tròn, mỗi bàn hai ghế đôn, trên bàn có cốc cà phê, bánh
+function cafeTable(cx,b,k){let s='';
+ [-18,18].forEach(dx=>{s+=R(cx+dx-1,b-14,2,13,'#5e3820')+RR(cx+dx-4,b-2,8,2,1,'#5e3820')+RR(cx+dx-6,b-17,12,4,2,'#c8775a',K(.6))});
+ s+=R(cx-1.5,b-24,3,22,'#5e3820')+E(cx,b-1.5,7,2,'#5e3820')+E(cx,b-25,15,4.5,'#efd2a0',K(.8))+E(cx,b-26,12,2.4,'#f7e3bd');
+ return s+(k%2?cup(cx-8,b-33,true)+E(cx+5,b-28,4.5,1.4,'#ffffff',K(.4))+P('M'+(cx+2)+' '+(b-29)+' l6 0 l-3 -4z','#f2c14e',K(.4))
+  :cup(cx-6,b-33,true)+cup(cx+2,b-33,false))}
+function cafeRow(b){const x0=L0+16,x1=LR-36,n=Math.max(1,Math.floor((x1-x0)/80)),gap=(x1-x0)/n;let s='';
+ for(let i=0;i<n;i++)s+=cafeTable(Math.round(x0+gap*(i+.5)),b,i);return s}
+// Bàn bóng bàn (quả bóng nảy qua lại), vợt hai đầu, ghế lười bên cạnh
+function pingRow(b){const x=L0+16;
+ let s=RR(x+8,b-16,4,16,1,'#3b3b3b')+RR(x+108,b-16,4,16,1,'#3b3b3b')+RR(x,b-27,120,12,2,'#2f6fb3',K(1))+R(x+3,b-25.5,114,1,'#e9f0ff')+R(x+59.5,b-25.5,1,9,'#e9f0ff')
+  +RR(x+57.5,b-35,5,10,1,'rgba(255,255,255,.55)',K(.4))+E(x+12,b-31,4,5,'#d64545',K(.5))+R(x+11,b-27,2,4,'#8a5634')+E(x+108,b-31,4,5,'#3f7ee0',K(.5))+R(x+107,b-27,2,4,'#8a5634')
+  +'<g class="ppball">'+C(x+36,b-31,1.7,'#ffffff',K(.4))+'</g>';
+ if(LR-36-(x+120)>=40)s+=E(x+150,b-8,14,9,'#3f8f4a',K(1))+E(x+146,b-11,5,3,'rgba(255,255,255,.25)');
+ if(LR-36-(x+120)>=80)s+=E(x+186,b-8,14,9,'#e07a1f',K(1))+E(x+182,b-11,5,3,'rgba(255,255,255,.25)');
+ return s}
+// Góc đọc sách: kệ sách, ghế bành, đèn cây, chậu cây
+function nookRow(b){const x=L0+16;
+ let s=bookshelf(x,b-56,48,56)+sofaBack(x+62,b-36,32,'#9a5fd6')+sofaArms(x+62,b-36,32,'#9a5fd6')+RR(x+68,b-28,14,10,1,'#c94040',K(.5)+ROT(-12,x+75,b-23))
+  +LN('M'+(x+112)+' '+b+' l0 -42','#3b3b3b',1.6)+E(x+112,b,6,1.6,'#3b3b3b')+P('M'+(x+104)+' '+(b-40)+' l16 0 l-4 -10 l-8 0z','#ffe9b0',K(.8));
+ if(LR-36-(x+120)>=40)s+=plantBig(x+150,b);
  return s}
 function bunting(x0,x1,y,sag){const c=['#e05555','#f2c14e','#4fa35a','#3f7ee0','#9a5fd6'];
  let s=LN('M'+x0+' '+y+' Q'+(x0+x1)/2+' '+(y+sag*2)+' '+x1+' '+y,'#7a3d20',.8);const n=Math.floor((x1-x0)/13);
@@ -751,6 +787,7 @@ function selBox(x,y,w,h){return '<rect class="sel" x="'+x+'" y="'+y+'" width="'+
 // Trạng thái ngắn ghi dưới bàn
 function shortOf(a,st,asking){
  if(st.kind==='bad')return 'chưa khai báo';
+ if(a&&a.nowMerged&&st.kind==='idle')return 'xong · đã merge';
  if(asking)return 'đang hỏi Master';
  if(a&&a.now&&st.label===a.now)return cut(a.now,26);
  if(st.txt==='!')return 'chờ bạn';
@@ -769,13 +806,14 @@ function stateOf(a,dir){
  if(!a)return{kind:'bad',txt:'?',label:'Chưa khai báo trong agents.txt',on:false};
  const here=a.pending.filter(p=>p.indexOf(dir+'/')===0).length;
  // dir thuộc một trong các tính năng ids ("F-005")? ids rỗng (không biết) hay dir rỗng (cây nước) thì coi là có
- const inF=ids=>!dir||!ids.length||ids.some(F=>dir.indexOf(F+'-')===0);
+ // dir bắt đầu bằng '~' (dãy Làm trực tiếp) thì mọi dòng trạng thái đều tính là ở đây
+ const inF=ids=>!dir||dir[0]==='~'||!ids.length||ids.some(F=>dir.indexOf(F+'-')===0);
  // Agent đang chạy (subagent qua .sub, auto/window qua .job) chỉ hiện "…" ở dãy bàn của tính năng nó đang làm
  const runHere=a.running&&inF(a.runIn||[]),what=a.sub||a.job;
  if(runHere)return{kind:'run',txt:'…',label:a.sub?'Master đang gọi ('+a.sub+')':'Đang chạy'+(a.job?' ('+a.job+')':''),on:true};
  if(a.running&&!here)return{kind:'idle',txt:'z',label:'Đang chạy ở '+what,on:false};
  // Dòng .now của Master: có mã F-NNN thì chỉ hiện ở dãy bàn tính năng đó, không có mã thì hiện ở mọi dãy của Master
- if(a.now&&inF(a.now.match(/F-\d+/g)||[]))return a.nowWait?{kind:'wait',txt:'!',label:a.now,on:true}:{kind:'run',txt:'…',label:a.now,on:true};
+ if(a.now&&!a.nowMerged&&inF(a.now.match(/F-\d+/g)||[]))return a.nowWait?{kind:'wait',txt:'!',label:a.now,on:true}:{kind:'run',txt:'…',label:a.now,on:true};
  if(here)return{kind:'wait',txt:String(here),label:MODE_WAIT[a.mode]||'Có việc, cần mở phiên tay',on:true};
  return{kind:'idle',txt:'z',label:'Rảnh',on:false};
 }
@@ -823,6 +861,16 @@ const agG=(id,label,inner)=>{const e=arriving(id),now=Date.now();
 
 /* ---------- đã chờ bạn bao lâu ---------- */
 // Tính từ lần sửa cuối của file đang chờ bạn (hay dòng "Chờ bạn:" của Master), lấy cái sớm nhất trong tính năng
+/* ---------- Master làm trực tiếp ---------- */
+// Master chưa rảnh: dòng trạng thái (.now) còn hiệu lực, tức không trống, không bắt đầu bằng "Rảnh"/"Xong",
+// và nhánh nó nói chưa vào nhánh chính. Master như vậy mà không thuộc tính năng nào đang mở (làn trực tiếp,
+// chờ bạn push hay duyệt MR…) thì ngồi ở dãy bàn "Làm trực tiếp" trong văn phòng, không ra phòng chờ
+const masterBusy=a=>a.role==='master'&&!!a.now&&!a.nowMerged&&!/^\s*(rảnh|xong)\b/i.test(a.now);
+const DIRECT_W=116; // một bàn Master (rộng 100) và khoảng cách
+function directBlock(ids,byId){
+ const wait=ids.some(id=>(byId[id]||{}).nowWait),per=Math.max(1,Math.floor((BR-LX-16)/DIRECT_W)),rows=Math.ceil(ids.length/per),cols=Math.min(per,ids.length);
+ const f={id:'Làm trực tiếp',title:'',dir:'~direct',status:'in_dev',to:wait?'owner':'none',lane:'',items:[],members:ids,svLabel:wait?'chờ bạn':'đang làm'};
+ return{f,color:'#5b6b8a',direct:true,master:'',others:ids,rows,per,w:Math.max(240,16+cols*DIRECT_W),h:HEAD+rows*ROW_H+6}}
 function waitSince(f,id){let t=0;
  S.owner.forEach(o=>{if(o.path.indexOf(f.dir+'/')===0&&o.at&&(!t||o.at<t))t=o.at});
  const m=(S.masters||[]).find(m=>m.id===id&&m.waitOwner);if(m&&m.at&&(!t||m.at<t))t=m.at;return t}
@@ -885,6 +933,8 @@ function build(){
    const rows=Math.max(1,Math.ceil(others.length/PER_ROW)),cols=Math.max(1,Math.min(PER_ROW,others.length));
    return{f,color:COLORS[i%COLORS.length],master:ms[0]||f.master||'',others,rows,w:126+cols*STEP,h:HEAD+rows*ROW_H+6};
   });
+  {const inF=new Set(blocks.flatMap(b=>[b.master,...b.others])),dm=S.agents.filter(a=>masterBusy(a)&&!inF.has(a.id)).map(a=>a.id);
+   if(dm.length)blocks.push(directBlock(dm,byId))}
   busy=new Set(blocks.flatMap(b=>[b.master,...b.others]));
   free=S.agents.filter(a=>!busy.has(a.id));
   // các dãy bàn rộng vừa đủ số bàn; dãy nhỏ xếp cạnh nhau trên một tầng nếu đủ chỗ; giữa các tầng là lối đi cho thú cưng
@@ -906,6 +956,8 @@ function build(){
  // cảnh thấp hơn cửa sổ (màn máy tính) thì kéo dài sàn xuống cho văn phòng chiếm hết chiều cao màn hình;
  // màn điện thoại (cảnh đã nhỏ hơn MIN_PX) thì thôi, kẻo sàn trống dài
  if(SCENE_PX>=MIN_PX&&H*SCENE_PX<sceneAvail()){laneB=Math.max(laneB,Math.floor((sceneAvail()/SCENE_PX-14)/4)*4);H=laneB+14}
+ // phòng chờ còn chỗ (cột trái cao hơn mức cần) thì kê thêm hàng sofa, tối đa 3 hàng; chỗ trống còn lại do góc giải trí lấp
+ if(WIDE)while(RROWS<3){const d2=q4(140+RROWS*104+86);if(d2+(LW>=290?112:192)>laneB)break;RROWS++;d0=d2;CAP=RROWS*PERR}
  const done=S.features.filter(f=>f.status==='done'),delivered=S.features.filter(f=>f.status==='delivered');
  // agent đổi khu (cây nước ↔ bàn) so với lần vẽ trước: ghi mốc để ẩn ở chỗ mới tới khi người đi bộ tới nơi
  if(MOTION_OK)S.agents.forEach(a=>{const q=PREV_PLACE.get(a.id),z=busy.has(a.id)?'desk':'cooler';if(q&&q.zone!==z)ARRIVE.set(a.id,now)});
@@ -927,7 +979,7 @@ function build(){
  if(need)s+=bubble(323,6,'!'+need,'bad');
  // ---- bảng trắng: các tính năng đang làm, rồi các tính năng đã xong
  s+=T(436,26,8.5,'#3b2a20','CÁC TÍNH NĂNG');
- const board=blocks.map(b=>({f:b.f,color:b.color})).concat(delivered.map(f=>({f,color:'#7f9cc2'})),done.slice().reverse().map(f=>({f,color:'#b9b0a3'})));
+ const board=blocks.filter(b=>!b.direct).map(b=>({f:b.f,color:b.color})).concat(delivered.map(f=>({f,color:'#7f9cc2'})),done.slice().reverse().map(f=>({f,color:'#b9b0a3'})));
  board.slice(0,4).forEach((b,i)=>{const y=31+i*16.5;
   s+=RR(371,y+1,6,6,1.5,b.color)+T(381,y+7.5,7.5,'#3b2a20',cut(b.f.id+' '+b.f.title,Math.floor(122/(CW*7.5))),'start')+T(381,y+15,6.6,b.f.to==='owner'?'#b23030':'#6b5c4e',stOf(b.f),'start')});
  if(board.length>4)s+=T(502,99,6.5,'#6b5c4e','+'+(board.length-4)+' nữa','end');
@@ -965,21 +1017,24 @@ function build(){
  blocks.forEach(b=>{
   const f=b.f,y=b.y,X=b.x,R2=b.x+b.w,C0=X+124;
   s+=rugBlock(X,y,b.w,b.hh,b.color);
-  const sv=stOf(f),svw=sv.length*CW*7.5+12,lbl=cut(f.id+' · '+f.title,Math.floor((b.w-22-svw)/(CW*8.5))),lw=lbl.length*CW*8.5;
+  const sv=f.svLabel||stOf(f),svw=sv.length*CW*7.5+12,lbl=cut(f.title?f.id+' · '+f.title:f.id,Math.floor((b.w-22-svw)/(CW*8.5))),lw=lbl.length*CW*8.5;
   s+=RR(X+4,y+6,Math.min(lw+svw+24,b.w-12),18,4,b.color)+T(X+10,y+18.5,8.5,'#ffffff',lbl,'start')
    +'<rect x="'+(X+16+lw)+'" y="'+(y+9)+'" width="'+svw+'" height="12" rx="3" fill="'+(f.to==='owner'?'#ffe066':'rgba(255,255,255,.88)')+'"/>'+T(X+16+lw+svw/2,y+17.8,7.5,f.to==='owner'?'#7a2a00':'#3b2a20',sv)
    +(LANE_NOTE[f.lane]&&X+28+lw+svw+LANE_NOTE[f.lane].length*CW*7<R2-8?T(X+24+lw+svw,y+18,7,'#3b2a20',LANE_NOTE[f.lane],'start'):'');
   const rowTop=r=>y+HEAD+r*ROW_H;
   // đồ giữa các bàn (cây, tủ hồ sơ, thùng rác) và cây ở cuối dãy
-  for(let r=0;r<b.rows;r++){const n=Math.min(PER_ROW,b.others.length-r*PER_ROW);
+  if(!b.direct)for(let r=0;r<b.rows;r++){const n=Math.min(PER_ROW,b.others.length-r*PER_ROW);
    for(let c=0;c<n;c++){const gx=C0+c*STEP+72+13;if(c===n-1&&gx>R2-14)break;
     s+=gapDeco(c===n-1?0:hashN(f.dir+r+'/'+c)%4,c===n-1?Math.min(gx+12,R2-18):gx,rowTop(r)+80)}}
   const seat=(id,x,w,top,isM)=>{
    if(!place.has(id))place.set(id,{x:x+w/2,y:top+48,zone:'desk',say:top+34,foot:top+112,kbY:top+57});
    s+=station(f,id,byId[id],x,w,top,isM,b.color);
   };
-  if(b.master)seat(b.master,X+8,100,rowTop(0),true);
-  b.others.forEach((id,k)=>{const r=Math.floor(k/PER_ROW),c=k%PER_ROW;seat(id,C0+c*STEP,72,rowTop(r),false)});
+  // dãy "Làm trực tiếp": toàn bàn Master (hai màn hình), mỗi người một bàn
+  if(b.direct)b.others.forEach((id,k)=>{const r=Math.floor(k/b.per),c=k%b.per;seat(id,X+8+c*DIRECT_W,100,rowTop(r),true)});
+  else{
+   if(b.master)seat(b.master,X+8,100,rowTop(0),true);
+   b.others.forEach((id,k)=>{const r=Math.floor(k/PER_ROW),c=k%PER_ROW;seat(id,C0+c*STEP,72,rowTop(r),false)})}
  });
  if(!blocks.length)s+=T((LX+BR)/2,TOP+44,9,'#3b2a20',done.length?'Không có tính năng nào đang làm':'Chưa có tính năng nào (workflow/F-*)');
  // ---- người đi bộ: agent vừa đổi chỗ (cây nước → bàn, bàn → cây nước). Vẽ ở lớp riêng #walk,
@@ -1412,15 +1467,49 @@ function banner(){
  if(wl)b.append(el('p','small alert',wl));
  b.hidden=false;b.onclick=null;
 }
-function showDetail(){
+// Master: đang làm gì (dòng .now), các tính năng mình phụ trách (tiến độ từng việc, câu hỏi và lỗi còn mở,
+// subagent đang chạy), những việc đang chờ bạn và câu cần nói
+function masterDetail(d,a){
+ const m=(S.masters||[]).find(x=>x.id===a.id),now=Date.now();
+ d.append(el('h2',null,'Đang làm'));
+ if(m){d.append(el('p',m.waitOwner?'mwait':'mnow',m.text),
+  el('p','muted',(m.waitOwner?(now-m.at<60e3?'⏱ Vừa tới lượt bạn':'⏱ Đã chờ bạn '+durLong(now-m.at)):'Cập nhật '+durLong(now-m.at)+(now-m.at<60e3?'':' trước'))+' (lúc '+hm(m.at)+')'+(m.merged?' · nhánh '+m.merged+' đã vào nhánh chính':'')))}
+ else d.append(el('p','muted','Không ghi trạng thái: phiên đang rảnh, hay đã xong việc.'));
+ const mine=S.features.filter(f=>f.master===a.id&&f.status!=='done'),doneN=S.features.filter(f=>f.master===a.id&&f.status==='done').length;
+ d.append(el('h2',null,'Tính năng phụ trách ('+mine.length+' đang mở'+(doneN?', '+doneN+' đã xong':'')+')'));
+ if(!mine.length)d.append(el('p','muted','Không có tính năng nào đang mở.'));
+ mine.forEach(f=>{const box=el('div','mfeat');
+  box.append(el('p','mtitle',f.id+' · '+f.title),el('p','muted',stOf(f)+(LANE_NOTE[f.lane]?' · '+LANE_NOTE[f.lane]:'')+(f.to==='owner'?' · đang chờ bạn':'')));
+  const tasks=f.items.filter(i=>i.kind==='tasks');
+  if(tasks.length){const cnt={};tasks.forEach(t=>cnt[t.status]=(cnt[t.status]||0)+1);
+   box.append(el('p',null,tasks.length+' việc: '+Object.entries(cnt).map(([k,v])=>v+' '+stVi(k)).join(' · ')));
+   const ul=el('ul');tasks.forEach(t=>ul.append(el('li',null,t.id+' '+t.title+' · '+stVi(t.status)+(t.assignee?' · '+t.assignee:'')+(t.to&&t.to!=='none'?' → '+(t.to==='owner'?'bạn':t.to):''))));box.append(ul)}
+  const open=f.items.filter(i=>(i.kind==='questions'||i.kind==='bugs')&&i.status==='open');
+  if(open.length){const ul=el('ul');open.forEach(i=>ul.append(el('li',null,(i.kind==='bugs'?'🐞 ':'❓ ')+i.id+' '+i.title+(i.from?' · từ '+i.from:'')+(i.to&&i.to!=='none'?' → '+(i.to==='owner'?'bạn':i.to):''))));
+   box.append(el('p','muted','Câu hỏi, lỗi còn mở:'),ul)}
+  const runs=S.agents.filter(x=>x.running&&(x.runIn||[]).includes(f.id));
+  if(runs.length)box.append(el('p',null,'Đang chạy: '+runs.map(x=>x.id+(x.sub||x.job?' ('+(x.sub||x.job)+')':'')).join(', ')));
+  d.append(box)});
+ const own=S.owner.filter(o=>mine.some(f=>f.id===o.feature));
+ if(own.length){d.append(el('h2',null,'Đang chờ bạn'));const ul=el('ul');
+  own.forEach(o=>{const ac=ownerAction(o);ul.append(el('li',null,o.feature+' · '+ac.act+(o.at?(now-o.at<60e3?' (vừa tới lượt bạn)':' (đã chờ '+durLong(now-o.at)+')'):'')+(ac.say?' → nói với '+a.id+': "'+ac.say+'"':'')))});d.append(ul)}
+}
+// Bảng chi tiết làm mới 3 giây một lần: giữ chỗ đang cuộn đọc, chỉ về đầu khi mở người khác
+let DETAIL_ID=null;
+function showDetail(){const d=$('#detail'),keep=DETAIL_ID===openId?d.scrollTop:0;DETAIL_ID=openId;showDetailBody();d.scrollTop=keep}
+function showDetailBody(){
  const d=$('#detail');const a=S.agents.find(x=>x.id===openId);d.replaceChildren();d.style.display='block';
  const close=el('button',null,'Đóng');close.onclick=()=>{openId=null;d.style.display='none';build()};d.append(close,el('h2',null,openId));
  if(!a){d.append(el('p',null,'Agent này được nhắc trong file nhưng chưa có trong workflow/agents.txt, nên watch.sh không đánh thức được.'));return}
- d.append(el('p',null,a.role+' · '+(MODE_NAME[a.mode]||'đánh thức tay')+(a.note?' · '+a.note:'')),el('p',null,a.paused?'Tạm dừng (đánh thức quá nhiều lần): sh workflow/watch.sh --resume '+a.id:a.running?(a.sub?'Đang chạy: Master gọi subagent ('+a.sub+')':'Đang chạy'):'Không chạy'));
+ const isM=a.role==='master';
+ d.append(el('p',null,a.role+' · '+(MODE_NAME[a.mode]||'đánh thức tay')+(a.note?' · '+a.note:'')));
+ if(isM)masterDetail(d,a);
+ else d.append(el('p',null,a.paused?'Tạm dừng (đánh thức quá nhiều lần): sh workflow/watch.sh --resume '+a.id:a.running?(a.sub?'Đang chạy: Master gọi subagent ('+a.sub+')':'Đang chạy'):'Không chạy'));
  d.append(el('h2',null,'File đang chờ'));
  if(a.pending.length){const ul=el('ul');a.pending.forEach(p=>{const li=el('li');li.append(el('code',null,p));ul.append(li)});d.append(ul)}else d.append(el('p','muted','Không có.'));
  if(a.hist&&a.hist.length){d.append(el('h2',null,'Các lần chạy gần đây'));const ul=el('ul');
   a.hist.forEach(h=>{const li=el('li');li.append(el('code',null,(h.start||'').replace('T',' ')+' → '+((h.end||'').split('T')[1]||h.end)),document.createTextNode(' '+h.what));ul.append(li)});d.append(ul)}
+ if(isM&&!a.lastLog)return; // Master là phiên chat, thường không có log của watch.sh
  d.append(el('h2',null,'Log gần nhất'));
  if(a.lastLog)d.append(el('p','muted',a.lastLog.name+(a.lastLog.mtime?' · '+new Date(a.lastLog.mtime).toLocaleString():'')),el('pre',null,a.lastLog.tail||'(trống)'));
  else d.append(el('p','muted','Chưa có log (agent subagent hoặc đánh thức tay, hoặc chưa được đánh thức lần nào).'));

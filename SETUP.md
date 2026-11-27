@@ -276,7 +276,7 @@ sh workflow/watch.sh
 - Khu **"Cần bạn"** ngay bên dưới.
 - **Văn phòng kiểu hoạt hình:**
   - mỗi tính năng là **một dãy bàn** có thảm màu riêng;
-  - Master ngồi bàn lớn đầu dãy, Coder và Tester ở các bàn kế tiếp, ngồi quay lưng nhìn màn hình; dãy dài thì tự xuống hàng, dãy ít người thì hẹp lại và xếp cạnh dãy khác;
+  - Master ngồi bàn lớn đầu dãy, Coder và Tester ở các bàn kế tiếp, ngồi quay lưng nhìn màn hình; dãy dài thì tự xuống hàng, dãy ít người thì hẹp lại và xếp cạnh dãy khác; Master còn việc dở mà không thuộc tính năng nào (làn trực tiếp, chờ MR…) ngồi ở dãy "Làm trực tiếp", chỉ Master thật sự rảnh mới ra phòng chờ;
   - trang rộng hết màn hình: màn càng rộng thì mỗi hàng càng nhiều bàn; màn rộng (từ khoảng 1280px) có thêm phòng chờ và góc giải trí ngoài cùng bên trái; văn phòng chiếm hết chiều cao màn hình (cao hơn thì tự thu nhỏ cho vừa); chú thích các ký hiệu ở nút ❔ CHÚ THÍCH trên đầu trang;
   - nhìn hành động là biết trạng thái: gõ phím là đang làm, gõ ngón tay là có việc chờ, giơ tay "?" là đang chờ Master trả lời, bọ đỏ trên bàn là có lỗi Tester báo, Master đứng dậy quay lại giơ tờ giấy "!" là chờ bạn, gật gù "z" là rảnh. Dưới mỗi bàn có biển tên kèm trạng thái;
   - agent rảnh ngồi sofa ở phòng chờ (màn hẹp thì đứng uống nước ở cây nước); được gọi vào việc thì đi bộ về bàn;
@@ -288,7 +288,7 @@ sh workflow/watch.sh
   - lâu lâu có tên trộm thò đầu qua cửa sổ, có lúc lẻn vào lấy bánh; chó thấy thì đuổi, bấm vào trộm cũng đuổi được (chỉ là trò vui);
   - bàn "BẠN" (giữa phòng chờ và các phòng ban, có thảm đỏ chạy xuống) là của bạn: có việc chờ bạn thì hiện `!`, bấm vào để tới mục "Cần bạn". Thỉnh thoảng bạn rời bàn đi một vòng văn phòng (chó có khi đi theo) rồi về.
 - **Xem thử giao diện** mà không cần dự án: `node workflow/monitor.js --demo --port 4321`. Dữ liệu giả nằm trong thư mục tạm, cứ 9 giây đổi một cảnh (đi bộ, pháo giấy, tắt đèn).
-- **Bấm vào một agent** để xem file đang chờ nó và log gần nhất.
+- **Bấm vào một agent** để xem file đang chờ nó và log gần nhất. Bấm vào một **Master** thì thấy thêm Master đó đang làm gì (đã chờ bạn bao lâu), các tính năng nó phụ trách với tiến độ từng việc, câu hỏi và lỗi còn mở, ai đang chạy, và việc nào đang chờ bạn kèm câu cần nói.
 - Trang tự làm mới 3 giây một lần, **chỉ đọc**, và chỉ mở trên máy bạn: máy khác trong mạng không vào được.
 
 Không muốn chạy trang web thì mở `workflow/STATUS.md`. Trong VS Code, bản xem trước Markdown (`Ctrl+Shift+V`) tự cập nhật khi file đổi.
