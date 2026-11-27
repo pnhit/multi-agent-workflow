@@ -282,6 +282,10 @@ sh workflow/watch.sh
   - agent rảnh ngồi sofa ở phòng chờ (màn hẹp thì đứng uống nước ở cây nước); được gọi vào việc thì đi bộ về bàn;
   - cửa mở nghĩa là có việc chờ bạn; đồng hồ đứng và đèn tắt nghĩa là `watch.sh` không chạy; tính năng vừa xong thì có pháo giấy; chó, mèo, chuột chạy khắp văn phòng: chuột chui ra từ lỗ chân tường, mèo rượt theo, chó đi dạo rồi về ổ ngủ ở góc nghỉ. Bấm chó thì nó đuổi người gần nhất, bấm mèo thì nó nhảy lên bàn nằm cạnh bàn phím, bấm chuột thì nó chạy về hang;
   - một việc kiểm tra đạt thì cả dãy bàn reo, có pháo giấy; một tính năng xong thì pháo hoa toàn màn hình (bấm để tắt) và cả văn phòng reo;
+  - thỉnh thoảng một người hiện bong bóng việc mình đang làm (như "T-03: Giới hạn số lần thử");
+  - Master chờ bạn có huy hiệu ⏱ đã chờ bao lâu (xanh, vàng, đỏ); mục "Cần bạn" cũng ghi đã chờ bao lâu;
+  - trời ngoài cửa sổ theo giờ thật (ngày, chiều tà, đêm; xem thử bằng `?gio=21` cuối địa chỉ trang);
+  - lâu lâu có tên trộm thò đầu qua cửa sổ, có lúc lẻn vào lấy bánh; chó thấy thì đuổi, bấm vào trộm cũng đuổi được (chỉ là trò vui);
   - bàn "BẠN" ở góc phải là của bạn: có việc chờ bạn thì hiện `!`, bấm vào để tới mục "Cần bạn". Thỉnh thoảng bạn rời bàn đi một vòng văn phòng (chó có khi đi theo) rồi về.
 - **Xem thử giao diện** mà không cần dự án: `node workflow/monitor.js --demo --port 4321`. Dữ liệu giả nằm trong thư mục tạm, cứ 9 giây đổi một cảnh (đi bộ, pháo giấy, tắt đèn).
 - **Bấm vào một agent** để xem file đang chờ nó và log gần nhất.

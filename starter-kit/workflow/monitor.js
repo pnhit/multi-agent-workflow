@@ -156,9 +156,11 @@ function readFeatures() {
     const specText = read(path.join(fd, 'SPEC.md'));
     const s = frontmatter(specText);
     const items = [];
+    // at: lần sửa file cuối (ms), để monitor tính "chờ bạn đã bao lâu"
+    const mtimeOf = rel => { try { return fs.statSync(path.join(fd, rel)).mtimeMs; } catch { return 0; } };
     const add = (rel, m, kind, text) => items.push({
       path: dir + '/' + rel, file: rel, kind, id: m.id || rel, title: m.title || '', status: m.status || '',
-      to: m.to || 'none', assignee: m.assignee || '', tester: m.tester || '', from: m.from || '',
+      to: m.to || 'none', assignee: m.assignee || '', tester: m.tester || '', from: m.from || '', at: mtimeOf(rel),
       // Chỉ kèm nội dung khi file đang chờ chủ dự án
       sections: m.to !== 'owner' ? [] : kind === 'spec' ? sections(text, /cách thử|báo cáo/i) : [{ title: 'Nội dung', text: bodyOf(text) }],
     });
@@ -254,7 +256,7 @@ function state() {
     for (const m of f.members) if (byId[m]) byId[m].features.push(f.id); else unknown.add(m);
   }
   return {
-    project: DEMO ? 'XEM THỬ (dữ liệu giả)' : path.basename(ROOT), now: new Date().toISOString(),
+    project: DEMO ? 'XEM THỬ (dữ liệu giả)' : path.basename(ROOT), now: new Date().toISOString(), demo: DEMO,
     hasWorkflow: isDir(W), agents, features, owner, unknown: [...unknown], masters, watch: readWatch(),
     // Do watch.sh ghi mỗi lần quét (việc không ai cầm, status/to lệch, thiếu Nguồn:, chờ quá lâu)
     anomalies: read(path.join(W, '.run', 'lint.txt')).split(/\r?\n/).filter(Boolean).map(s => s.replace(/`/g, '')),
@@ -465,7 +467,7 @@ const tint=(h,k)=>{const n=parseInt(h.slice(1),16),f=v=>Math.round(k<0?v*(1+k):v
 function defs(){return '<defs>'
  +'<linearGradient id="shd" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".22"/></linearGradient>'
  +'<linearGradient id="scr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#302c5c"/><stop offset="1" stop-color="#15142a"/></linearGradient>'
- +'<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+(NIGHT?'#0d1636':'#68b8ef')+'"/><stop offset="1" stop-color="'+(NIGHT?'#2b3d70':'#d6f1ff')+'"/></linearGradient>'
+ +'<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+(NIGHT?'#0d1636':DUSK?'#e9835a':'#68b8ef')+'"/><stop offset="1" stop-color="'+(NIGHT?'#2b3d70':DUSK?'#ffd49a':'#d6f1ff')+'"/></linearGradient>'
  +'<linearGradient id="wallg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4ebd9"/><stop offset="1" stop-color="#e7d9bf"/></linearGradient>'
  +'<radialGradient id="glow"><stop offset="0" stop-color="#ffd98a" stop-opacity=".55"/><stop offset="1" stop-color="#ffd98a" stop-opacity="0"/></radialGradient>'
  +'<pattern id="wp" width="22" height="22" patternUnits="userSpaceOnUse">'+P('M11 6 l2.4 5 l-2.4 5 l-2.4 -5z','#e6d7ba')+C(0,0,1.3,'#e6d7ba')+C(22,0,1.3,'#e6d7ba')+C(0,22,1.3,'#e6d7ba')+C(22,22,1.3,'#e6d7ba')+'</pattern>'
@@ -552,6 +554,7 @@ function pantry(x){return RR(x,84,38,28,2,'#c88f5a',K(1))+R(x+19,86,1,24,'#8a5a3
  +RR(x+26,72,6,8,1.5,'#e05555',K(.6))+RR(x+32,74,5,6,1.5,'#3f7ee0',K(.6))}
 function windowPane(x,y,w,h){let s=RR(x,y,w,h,2,'#f4efe6',K(1))+R(x+3,y+3,w-6,h-6,'url(#sky)');
  if(NIGHT){s+=C(x+w-18,y+13,5,'#f4e9b8')+C(x+w-16,y+12,4.4,'#1b2a52');[[8,9],[22,18],[35,8],[48,22],[15,30],[58,12]].forEach(([a,b])=>s+=C(x+a,y+b,.8,'#fff'))}
+ else if(DUSK)s+=C(x+w-22,y+h-12,6,'#ff7a35')+E(x+20,y+14,8,3,'#ffc0a0')+E(x+48,y+20,7,2.6,'#ffb48f');
  else s+=C(x+w-18,y+12,5,'#ffe27a')+E(x+20,y+14,8,3.5,'#fff')+E(x+26,y+12,6,4,'#fff')+E(x+50,y+24,7,3,'#fff');
  s+=P('M'+(x+3)+' '+(y+h-3)+' q'+(w*.25)+' -14 '+(w*.5)+' -6 q'+(w*.25)+' -10 '+(w*.5-6)+' -2 l0 8z',NIGHT?'#1f3a3a':'#7cc47a');
  s+=R(x+w/2-1.5,y+2,3,h-4,'#f4efe6')+R(x+2,y+h/2-1.5,w-4,3,'#f4efe6');
@@ -785,7 +788,11 @@ function layout(){
  PER_ROW=Math.max(5,Math.floor((BR-LX-126)/STEP)); // một dãy đủ PER_ROW bàn rộng 126+PER_ROW*STEP, vừa khít BR-LX
  BED_X=WIDE?-LW+60:200;
 }
-const NIGHT=!!(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);
+// Ngày, chiều tà, đêm theo giờ thật của máy (không theo chế độ tối của hệ điều hành).
+// Xem thử giờ khác: thêm ?gio=21 vào địa chỉ trang
+let NIGHT=false,DUSK=false;
+const FORCE_H=(()=>{const v=new URLSearchParams(location.search).get('gio');return v!=null&&v!==''&&!isNaN(v)?Number(v):null})();
+function timeOfDay(){const h=FORCE_H!=null?FORCE_H:new Date().getHours();NIGHT=h>=19||h<6;DUSK=!NIGHT&&(h>=17||h<7)}
 const MOTION_OK=!window.matchMedia||!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 // Nhớ chỗ của từng agent ở lần vẽ trước: đổi chỗ (cây nước ↔ bàn) thì cho đi bộ; tính năng vừa xong thì bắn pháo giấy
 const PREV_PLACE=new Map(),PREV_STATUS=new Map(),PREV_ITEM=new Map(),ARRIVE=new Map();let PARTY=[];
@@ -799,6 +806,17 @@ const agG=(id,label,inner)=>{const e=arriving(id),now=Date.now();
  return '<g class="ag'+(openId===id?' on':'')+fx+(e!=null?' arrive':'')+'"'+(e!=null?' style="animation-delay:-'+(e/1000).toFixed(2)+'s"':'')
   +' data-id="'+esc(id)+'" tabindex="0" role="button" aria-label="'+esc(id+': '+label)+'"><title>'+esc(id+': '+label)+'</title>'+inner+'</g>'};
 
+/* ---------- đã chờ bạn bao lâu ---------- */
+// Tính từ lần sửa cuối của file đang chờ bạn (hay dòng "Chờ bạn:" của Master), lấy cái sớm nhất trong tính năng
+function waitSince(f,id){let t=0;
+ S.owner.forEach(o=>{if(o.path.indexOf(f.dir+'/')===0&&o.at&&(!t||o.at<t))t=o.at});
+ const m=(S.masters||[]).find(m=>m.id===id&&m.waitOwner);if(m&&m.at&&(!t||m.at<t))t=m.at;return t}
+const durShort=ms=>{const m=Math.floor(ms/60000);if(m<1)return 'mới';if(m<60)return m+' phút';const h=Math.floor(m/60);if(h<24)return h+'g'+(m%60?String(m%60).padStart(2,'0'):'');return Math.floor(h/24)+' ngày'};
+const durLong=ms=>{const m=Math.floor(ms/60000);if(m<1)return 'vừa xong';if(m<60)return m+' phút';const h=Math.floor(m/60);if(h<24)return h+' giờ'+(m%60?' '+(m%60)+' phút':'');return Math.floor(h/24)+' ngày'+(h%24?' '+(h%24)+' giờ':'')};
+// dưới 30 phút xanh, dưới 2 giờ vàng, lâu hơn thì đỏ
+const waitCol=ms=>ms<30*60e3?'#3f8f4a':ms<2*3600e3?'#c98a12':'#c23b3b';
+function waitBadge(x,y,ms){const t='⏱ '+durShort(ms),w=t.length*4.4+10;
+ return '<g class="lbl">'+RR(x,y,w,12,3,waitCol(ms),K(.6))+T(x+w/2,y+8.6,7,'#ffffff',t)+'</g>'}
 // Một chỗ ngồi: màn hình, bàn, đồ trên bàn, người quay lưng, ghế, bong bóng, biển tên
 // Y: mép trên mặt bàn; đầu người ngồi ở Y+6, người đứng ở Y-2
 function station(f,id,a,x,w,top,isMaster,color){
@@ -820,14 +838,14 @@ function station(f,id,a,x,w,top,isMaster,color){
  if(role==='tester')s+=lensProp(cx+13,Y);
  if(bugs)s+=bug(x+4,Y+12);
  // Master chờ bạn: đứng dậy quay lại, giơ tờ giấy; còn lại ngồi quay lưng nhìn màn hình
- if(standUp)s+=chair(cx+20,Y+27)+standFront(cx-8,Y-2,L,role,color,'paper');
+ if(standUp){const since=waitSince(f,id);s+=chair(cx+20,Y+27)+standFront(cx-8,Y-2,L,role,color,'paper')+(since?waitBadge(cx+14,Y-17,Date.now()-since):'')}
  else s+=(a?sitBack(cx,Y+6,L,role,color,pose):'<g opacity=".45">'+sitBack(cx,Y+6,L,role,'#8f9bb0','idle')+'</g>')+chair(cx,Y+27);
  s+=bubble(cx,top+4,bubbleTxt,bubbleKind)+label(cx,Y+56,id,shortOf(a,st,asking),asking?'wait':st.kind,w+18);
  return agG(id,st.label+(asking?' · đang chờ Master trả lời câu hỏi':'')+(bugs?' · có lỗi Tester báo':''),s);
 }
 
 function build(){
- layout();
+ layout();timeOfDay();
  const byId=Object.fromEntries(S.agents.map(a=>[a.id,a]));
  const now=Date.now();
  // tính năng vừa chuyển sang "xong" ở lần làm mới này: pháo giấy 6 giây
@@ -876,6 +894,7 @@ function build(){
  s+=lounge(laneB-4,!WIDE);
  if(WIDE)s+=loungeWall(S.agents.filter(a=>a.running).length,need,done.length)+partition(lanes.concat(laneB),H)
   +RR(-186,128,172,RROWS*104-10,10,'#c96f5a',' fill-opacity=".18" stroke="#c96f5a" stroke-opacity=".5" stroke-width="1.5"')+playCorner(d0,laneB);
+ if(DUSK)s+=R(VX,0,VW,H,'rgba(255,140,60,.08)');
  if(NIGHT)s+=R(VX,0,VW,H,'rgba(20,30,70,.18)')+E(134,34,26,20,'url(#glow)')+E(AX-48,34,26,20,'url(#glow)')+E(22,laneB-52,30,26,'url(#glow)')+(WIDE?E(-40,34,26,20,'url(#glow)')+E(-104,49,56,36,'url(#glow)'):'');
  if(need)s+=bubble(323,6,'!'+need,'bad');
  // ---- bảng trắng: các tính năng đang làm, rồi các tính năng đã xong
@@ -959,7 +978,7 @@ function build(){
  celeb.forEach(c=>c.big?bigParty(c.f):smallParty(c.f,c.it));
  const lg=$('#legend');lg.replaceChildren();
  lg.append(el('span',null,'Màn hình chạy code, tay gõ phím = đang làm · gõ ngón tay = có việc chờ (số trên bong bóng) · giơ tay "?" = đang chờ Master trả lời · bọ đỏ trên bàn = có lỗi Tester báo · Master đứng dậy quay lại giơ giấy "!" = chờ bạn · gật gù "z" = rảnh · bóng mờ "?" = ID chưa khai trong agents.txt'),
-  el('span',null,'Cửa mở = có việc chờ bạn · đồng hồ đứng, đèn tắt = watch.sh không chạy · rê chuột vào ai để xem chi tiết, bấm để mở · bấm bàn "BẠN" để tới mục Cần bạn · thỉnh thoảng bạn rời bàn đi một vòng văn phòng · bấm chó: nó đuổi người gần nhất · bấm mèo: nó nhảy lên nằm cạnh bàn phím · bấm chuột: nó chạy về hang · việc kiểm tra đạt: cả dãy reo · tính năng xong: pháo hoa (bấm để tắt)'));
+  el('span',null,'Cửa mở = có việc chờ bạn · đồng hồ đứng, đèn tắt = watch.sh không chạy · rê chuột vào ai để xem chi tiết, bấm để mở · bấm bàn "BẠN" để tới mục Cần bạn · thỉnh thoảng bạn rời bàn đi một vòng văn phòng · bấm chó: nó đuổi người gần nhất · bấm mèo: nó nhảy lên nằm cạnh bàn phím · bấm chuột: nó chạy về hang · việc kiểm tra đạt: cả dãy reo · tính năng xong: pháo hoa (bấm để tắt) · ⏱ cạnh Master = đã chờ bạn bao lâu (xanh dưới 30 phút, vàng dưới 2 giờ, đỏ lâu hơn) · trời ngoài cửa sổ theo giờ thật · lâu lâu có tên trộm ghé (bấm vào để đuổi)'));
  if(free.length>CAP)lg.append(el('span',null,'Rảnh, không hiện hết: '+free.slice(CAP).map(a=>a.id).join(', ')));
 }
 
@@ -969,7 +988,9 @@ function build(){
 // mèo rượt theo; chuột về lỗ thì mèo ngồi canh. Chó đi sát mèo thì mèo giật mình nhảy lên rồi bỏ chạy.
 // Lớp #pets riêng, không bị thay khi trang làm mới 3 giây.
 const XL=16,BASE_Y=124,LV=-20,LL=-LW+16,q4=v=>Math.round(v/4)*4;let XR=676;
-let G=null,GSIG='',HOLE='',GUARD='',BED='',SPOT='';const CRIT={};
+let G=null,GSIG='',HOLE='',GUARD='',BED='',SPOT='',DOOR='';const CRIT={};
+// Tên trộm: lâu lâu mới xuất hiện (5–10 phút; chế độ xem thử thì chừng một phút)
+const thiefGap=first=>S&&S.demo?(first?300:900+Math.random()*700):(first?3600+Math.random()*2400:6000+Math.random()*6000);
 // Bạn (chủ dự án) thỉnh thoảng rời bàn đi một vòng: dừng ở vài chỗ nói một câu, chó có khi lẽo đẽo theo, rồi về bàn
 const BOSS_L={hair:'#2d2d3a',skin:'#f5cfa6',style:'short',pants:'#3a3f5c'};
 const BOSS_SAY=['Cố lên!','Tốt lắm!','Đẹp đấy!','Hmm…','Nghỉ tí ☕','Ổn chứ?','Nhanh nào!'];
@@ -994,7 +1015,7 @@ const goTo=(a,id)=>{a.path=route(nodeAt(a.x,a.y),id)};
 // Chỗ xa con vật a nhất trong vài điểm bốc ngẫu nhiên (để mèo chạy trốn)
 const farNode=a=>{let b=randNode();for(let i=0;i<6;i++){const k=randNode();if(dist(G.get(k),a)>dist(G.get(b),a))b=k}return b};
 function setGraph(g,bed){
- G=g;HOLE=HOLE_X+','+BASE_Y;GUARD=(HOLE_X+16)+','+BASE_Y;BED=bed;SPOT=XR+','+BASE_Y;
+ G=g;HOLE=HOLE_X+','+BASE_Y;GUARD=(HOLE_X+16)+','+BASE_Y;BED=bed;SPOT=XR+','+BASE_Y;DOOR=q4(323)+','+BASE_Y;
  const at=id=>G.get(id);
  if(!CRIT.dog){
   const c=at(randNode());
@@ -1002,15 +1023,18 @@ function setGraph(g,bed){
   CRIT.cat={x:c.x,y:c.y,dir:-1,path:[],mode:'roam',pose:'sit',wait:40,spd:1.3,odo:0,say:'',sayT:0,jump:0,re:0};
   CRIT.mouse={x:at(HOLE).x,y:at(HOLE).y,dir:-1,path:[],mode:'hide',pose:'walk',wait:90,spd:2.6,odo:0,say:'',sayT:0,jump:0,hidden:true,trips:0};
   CRIT.boss={x:at(SPOT).x,y:at(SPOT).y,dir:1,path:[],mode:'desk',pose:'stand',wait:300,spd:1.8,odo:0,say:'',sayT:0,jump:0,stops:0,pause:0};
+  CRIT.thief={x:at(DOOR).x,y:at(DOOR).y,dir:1,path:[],mode:'away',pose:'stand',wait:thiefGap(true),spd:1,odo:0,say:'',sayT:0,jump:0,loot:false};
   return}
  // bố cục đổi (thêm, bớt dãy bàn): đặt từng con vào điểm gần nhất trên lối đi mới, đang ngủ thì ngủ tiếp
- const b=CRIT.boss;
+ const b=CRIT.boss,th=CRIT.thief;
  if(CATDESK)catDesk('');
- Object.values(CRIT).forEach(a=>{const n=at(nodeAt(a.x,a.y));a.x=n.x;a.y=n.y;a.path=[];a.hop=null;if(a!==b&&a.mode!=='sleep'&&a.mode!=='nap'&&a.mode!=='hide'&&a.mode!=='follow')a.mode='roam';a.wait=a===b?a.wait:10});
+ Object.values(CRIT).forEach(a=>{const n=at(nodeAt(a.x,a.y));a.x=n.x;a.y=n.y;a.path=[];a.hop=null;if(a!==b&&a!==th&&a.mode!=='sleep'&&a.mode!=='nap'&&a.mode!=='hide'&&a.mode!=='follow')a.mode='roam';a.wait=a===b||a===th?a.wait:10});
  if(CRIT.dog.mode==='sleep'){const n=at(BED);CRIT.dog.x=n.x;CRIT.dog.y=n.y}
  if(CRIT.mouse.hidden){const n=at(HOLE);CRIT.mouse.x=n.x;CRIT.mouse.y=n.y}
  // bạn đang đi vòng thì đi tiếp tới một chỗ mới (hay về bàn), đang đứng xem thì đứng xem tiếp
  if(b.mode==='desk'){const n=at(SPOT);b.x=n.x;b.y=n.y}else if(!b.pause)goTo(b,b.mode==='back'?SPOT:nearNode(b,300))
+ // tên trộm đang trong văn phòng thì chuồn ra cửa luôn
+ if(th.mode!=='away'&&th.mode!=='peek'){th.mode='run';goTo(th,DOOR)}
 }
 // Đi theo đường đã tính; k: số nhịp 50ms đã trôi qua. Trả về true khi tới nơi
 function move(a,k){let left=a.spd*k*(a.boost?1.6:1);const sx=a.x,sy=a.y;
@@ -1022,8 +1046,8 @@ function move(a,k){let left=a.spd*k*(a.boost?1.6:1);const sx=a.x,sy=a.y;
  a.odo+=Math.abs(a.x-sx)+Math.abs(a.y-sy);return !a.path.length}
 const say=(a,t,n)=>{a.say=t;a.sayT=n||14};
 function think(k){
- const d=CRIT.dog,c=CRIT.cat,m=CRIT.mouse,b=CRIT.boss;
- [d,c,m,b].forEach(a=>{if(a.sayT>0)a.sayT-=k;if(a.jump>0)a.jump-=k});
+ const d=CRIT.dog,c=CRIT.cat,m=CRIT.mouse,b=CRIT.boss,th=CRIT.thief;
+ [d,c,m,b,th].forEach(a=>{if(a.sayT>0)a.sayT-=k;if(a.jump>0)a.jump-=k});
  // bạn: ngồi bàn một lúc, rồi đi qua vài chỗ ngẫu nhiên, mỗi chỗ đứng nhìn và nói một câu, xong về bàn
  if(b.mode==='desk'){if((b.wait-=k)<=0){b.mode='tour';b.stops=2+Math.floor(Math.random()*3);b.pause=0;goTo(b,nearNode(b,360));setAway();
   if(d.mode!=='sleep'&&d.mode!=='bed'&&Math.random()<.6){d.mode='follow';d.re=0}}}
@@ -1064,6 +1088,8 @@ function think(k){
  else if(d.mode==='hunt'){d.spd=2.8;if(move(d,k)){d.mode='bark';d.wait=44;say(d,'Gâu gâu!',40);startle(d.tgt)}}
  else if(d.mode==='bark'){if(Math.floor(d.wait/8)!==Math.floor((d.wait-k)/8))d.dir=-d.dir;if((d.wait-=k)<=0){d.mode='roam';d.wait=30}}
  else if(d.mode==='zoom'){d.spd=3.6;if(move(d,k)){d.mode='roam';d.wait=20}}
+ // thấy trộm: đuổi theo sủa ầm ĩ tới khi nó ra khỏi cửa
+ else if(d.mode==='chaseThief'){d.spd=3;if((d.re-=k)<=0){d.re=6;if(th.mode==='away'||th.mode==='peek'){d.mode='roam';d.wait=20}else goTo(d,nodeAt(th.x,th.y))}move(d,k);if(d.sayT<=0)say(d,'Gâu!',12)}
  else if(d.path.length)move(d,k);
  else if((d.wait-=k)<=0){const r=Math.random();
   if(r<.15){d.mode='bed';goTo(d,BED)}else if(r<.3){goTo(d,SPOT);d.wait=60+Math.random()*80}else{goTo(d,randNode());d.wait=20+Math.random()*70}}
@@ -1071,6 +1097,19 @@ function think(k){
  // chó đi sát mèo: mèo giật mình nhảy lên rồi chạy đi; chó thấy chuột thì sủa
  if(d.pose==='walk'&&!onDesk&&!c.hop&&c.mode!=='flee'&&c.jump<=0&&dist(d,c)<14){c.jump=12;say(c,'!',12);say(d,'Gâu!');c.mode='flee';goTo(c,farNode(c))}
  if(!m.hidden&&d.pose!=='sleep'&&d.sayT<=0&&dist(d,m)<18)say(d,'Gâu!');
+ // tên trộm: thỉnh thoảng thò đầu nhìn qua cửa sổ; có lúc lẻn qua cửa vào lấy bánh trên một bàn rồi chuồn.
+ // Chó đang thức mà thấy (trong tầm 220) thì đuổi, trộm bỏ chạy
+ if(th.mode==='away'){if((th.wait-=k)<=0){th.mode='peek';th.wait=110}}
+ else if(th.mode==='peek'){if(th.wait>=80&&th.wait-k<80)say(th,pick(['Hehe…','Có ai không?','👀']),40);
+  if((th.wait-=k)<=0){const desks=[...PLACES].filter(([,p])=>p.zone==='desk');
+   if(desks.length&&!th.scared&&Math.random()<.55){const [id,p]=pick(desks),n=G.get(DOOR);th.x=n.x;th.y=n.y;th.tgt={id,...p};th.mode='sneak';goTo(th,nodeAt(p.x,p.foot));say(th,'Suỵt…',40)}
+   else{th.mode='away';th.scared=false;th.wait=thiefGap()}}}
+ else if(th.mode==='sneak'){th.spd=1.3;if(move(th,k)){th.mode='grab';th.wait=50;say(th,'Hehe 🍩',40);react(th.tgt.id,'Ơ, bánh của tôi!',2600,700)}}
+ else if(th.mode==='grab'){if((th.wait-=k)<=0){th.loot=true;th.mode='leave';goTo(th,DOOR)}}
+ else if(th.mode==='leave'||th.mode==='run'){th.spd=th.mode==='run'?3.2:1.5;if(move(th,k)){th.mode='away';th.loot=false;th.wait=thiefGap();if(d.mode==='chaseThief'){d.mode='roam';d.wait=20}}}
+ th.pose=th.path.length?'walk':'stand';
+ if((th.mode==='sneak'||th.mode==='grab'||th.mode==='leave')&&d.mode!=='sleep'&&d.mode!=='bed'&&dist(d,th)<180){
+  d.mode='chaseThief';d.re=0;say(d,'Gâu gâu!',40);th.mode='run';say(th,'Chuồn thôi!',40);goTo(th,DOOR)}
 }
 /* hình con vật: gốc toạ độ ở giữa chân, mặt quay sang phải */
 function dogArt(pose,fr,wag){const c='#c98d52',d='#8a5a30',l='#f3dcb8';
@@ -1094,12 +1133,37 @@ function catArt(pose,fr,jump){const c='#8d96a8',d='#5d6576',w='#eef1f6';
 function mouseArt(fr){const c='#a5978a';
  return LN('M-4 -2 q-4 -2.4 -7 0',' #d8b4a8',.8)+C(-2+(fr?1:0),-.4,.8,c)+C(2-(fr?1:0),-.4,.8,c)+E(0,-2.6,4.2,2.6,c,K(.6))+C(2.4,-4.6,1.6,'#f3b3b3',K(.4))
   +E(4.2,-2.4,1.9,1.6,c)+C(6.1,-2.6,.55,'#f3a3a3')+C(4.4,-3,.45,OL)}
+// Tên trộm kiểu hoạt hình: mũ len, mặt nạ đen, áo sọc, túi bị sau lưng; loot: cầm bánh donut
+const THIEF_L={hair:'#1f1a17',skin:'#e8b585',style:'short',pants:'#2d2d3a'};
+function thiefBody(cx,y,loot){
+ let s=C(cx-12,y+19,6,'#c9a46a',K(.8))+LN('M'+(cx-15)+' '+(y+14)+' l5 0','#8a6a3a',1.2)+standFront(cx,y,THIEF_L,'thief','#3b3b4a','');
+ s+=R(cx-9,y+16.5,18,1.8,'rgba(255,255,255,.6)')+R(cx-9,y+21,18,1.8,'rgba(255,255,255,.6)');
+ s+=P('M'+(cx-7.9)+' '+(y+5)+' C'+(cx-8.6)+' '+(y-6)+' '+(cx+8.6)+' '+(y-6)+' '+(cx+7.9)+' '+(y+5)+'Z','#22222c',K(.8))+RR(cx-8.3,y+2.6,16.6,3,1.5,'#3b3b4a',K(.6))+C(cx,y-4,1.8,'#3b3b4a',K(.5));
+ s+=RR(cx-7.2,y+5.8,14.4,3.8,1.9,'#111111')+C(cx-2.8,y+7.7,1.15,'#ffffff')+C(cx+2.8,y+7.7,1.15,'#ffffff')+C(cx-2.6,y+7.8,.5,'#111')+C(cx+3,y+7.8,.5,'#111');
+ if(loot)s+=C(cx+12.5,y+23.5,3.6,'#d9935a',K(.6))+C(cx+12.5,y+23,2.7,'#f08fb0')+C(cx+12.5,y+23.5,1.2,'#f5e7d6');
+ return s}
 function critSay(y,t){const w=t.length*4.4+8;return RR(-w/2,y,w,11,3,'#ffffff',K(.9))+P('M-2 '+(y+10.4)+' l2 3 l2 -3z','#ffffff')+T(0,y+8,7,'#3b2a20',t)}
 function drawCrit(){
  const svg=$('#pets');if(!svg||!CRIT.dog)return;
  const t=performance.now();
- ['dog','cat','mouse','boss'].forEach(n=>{const a=CRIT[n];let g=svg.querySelector('[data-c="'+n+'"]');
+ ['dog','cat','mouse','boss','thief'].forEach(n=>{const a=CRIT[n];let g=svg.querySelector('[data-c="'+n+'"]');
   if(!g){g=document.createElementNS('http://www.w3.org/2000/svg','g');g.setAttribute('data-c',n);g.setAttribute('class','crit');svg.appendChild(g);g.addEventListener('pointerdown',()=>poke(n))}
+  if(n==='thief'){
+   const talk=a.sayT>0?a.say:'';
+   if(a.mode==='away'){if(g._k!=='away'){g._k='away';g.innerHTML='';g.removeAttribute('transform')}return}
+   if(a.mode==='peek'){
+    // thò đầu sau ô kính cửa sổ (cắt theo khung kính), nhô lên, ngó qua lại rồi thụt xuống; song cửa vẽ đè lên
+    const up=Math.max(0,Math.min(1,(110-a.wait)/12,a.wait/12)),px=Math.round(192+Math.sin(t/650)*18),py=Math.round(34+(1-up)*26);
+    const key='peek'+px+'|'+py+'|'+talk;if(g._k===key)return;g._k=key;g.removeAttribute('transform');
+    g.innerHTML='<defs><clipPath id="winclip"><rect x="155" y="21" width="74" height="40"/></clipPath></defs>'
+     +'<g clip-path="url(#winclip)"><g transform="translate('+px+','+py+')">'+R(-10,-2,20,30,'transparent')+thiefBody(0,0,false)+'</g></g>'
+     +R(190.5,20,3,44,'#f4efe6')+R(154,39.5,76,3,'#f4efe6')+(talk&&up>.8?'<g transform="translate('+px+','+(py-16)+')">'+critSay(0,talk)+'</g>':'');
+    return}
+   const key=[a.mode,a.pose,talk,a.loot].join('|');
+   g.setAttribute('transform','translate('+a.x.toFixed(1)+','+a.y.toFixed(1)+')');
+   if(g._k===key)return;g._k=key;
+   g.innerHTML=R(-13,-40,26,41,'transparent')+'<g class="'+(a.pose==='walk'?'walker':'')+'">'+thiefBody(0,-38,a.loot)+'</g>'+(talk?critSay(-54,talk):'');
+   return}
   if(n==='boss'){
    // bạn đi một vòng: người đứng thẳng (chân bước khi đi), bong bóng việc chờ bạn đi theo trên đầu
    const out=a.mode!=='desk',talk=a.sayT>0?a.say:'',key=[out,a.pose,talk,NEED_N].join('|');
@@ -1156,6 +1220,8 @@ function poke(n){const a=CRIT[n];if(!a)return;
   if(MOTION_OK&&!a.hop&&a.mode!=='ondesk'&&a.mode!=='todesk'){const p=nearestPerson(a,420,true);
    if(p){a.desk=p;a.mode='todesk';goTo(a,nodeAt(p.x,p.foot))}else{a.mode='flee';goTo(a,farNode(a))}}
   else if(a.mode==='nap'){a.mode='roam';a.wait=12}}
+ else if(n==='thief'){if(a.mode==='peek'){say(a,'Ối!',16);a.wait=Math.min(a.wait,12);a.scared=true}
+  else if(a.mode!=='away'){say(a,'Á! Bị lộ rồi!',40);a.loot=false;a.mode='run';goTo(a,DOOR)}}
  else if(n==='boss'){if(NEED_N)$('#needBox').scrollIntoView({behavior:MOTION_OK?'smooth':'auto',block:'start'});else say(a,'Chào!',20)}
  else if(!a.hidden){say(a,'Chít!',16);if(MOTION_OK){a.mode='home';a.flee=true;goTo(a,HOLE)}}
  drawCrit()}
@@ -1196,11 +1262,26 @@ function fireworks(head,sub){
   if(e>6500||(e>4300&&!rockets.length&&!parts.length)){kill();return}
   requestAnimationFrame(frame)}
  requestAnimationFrame(frame)}
+/* ---------- nhân vật nói việc thật ---------- */
+// Cứ 8–15 giây, một người đang ngồi bàn nói việc mình đang làm (mã và tên việc, hay dòng trạng thái của Master);
+// thỉnh thoảng người ở phòng chờ nói chuyện phiếm
+const IDLE_SAY=['Cà phê ngon ghê ☕','Chờ việc thôi…','Có ai cần giúp không?','Nghỉ tí đã','Hôm nay ổn áp ghê','Zzz…'];
+function jobText(a){const m=(a.sub||a.job||'').match(/(F-\d+)\s+([TB]-\d+)/);
+ if(m){const f=S.features.find(x=>x.id===m[1]),it=f&&f.items.find(i=>i.id===m[2]);return m[2]+(it&&it.title?': '+it.title:'')}
+ return a.now&&!a.nowWait?a.now:''}
+let CHAT_AT=Date.now()+4000;
+function chatter(){if(!S||!PLACES.size)return;
+ const now=Date.now(),talking=new Set(REACT.filter(r=>r.until>now).map(r=>r.id));
+ const busy=S.agents.filter(a=>(PLACES.get(a.id)||{}).zone==='desk'&&!talking.has(a.id)&&jobText(a));
+ const idle=[...PLACES.keys()].filter(id=>PLACES.get(id).zone==='cooler'&&!talking.has(id));
+ if(busy.length&&(Math.random()<.75||!idle.length)){const a=pick(busy);react(a.id,cut(jobText(a),32),4500)}
+ else if(idle.length)react(pick(idle),pick(IDLE_SAY),3500)}
 let lastT=0;
 function critLoop(t){requestAnimationFrame(critLoop);
  if(!G||!CRIT.dog){lastT=t;return}
  const k=lastT?Math.min(3,(t-lastT)/50):1;lastT=t;
  if(MOTION_OK)think(k);else[CRIT.dog,CRIT.cat,CRIT.mouse].forEach(a=>{if(a.sayT>0)a.sayT-=k});
+ const nw=Date.now();if(nw>CHAT_AT){CHAT_AT=nw+8000+Math.random()*7000;chatter()}
  drawCrit()}
 requestAnimationFrame(critLoop);
 
@@ -1227,6 +1308,7 @@ function render(){
  else if(!S.owner.length){if(!anom.length&&!paused.length)need.append(el('p','muted','Không có gì chờ bạn.'))}
  else S.owner.forEach(o=>{const a=ownerAction(o),box=el('div','ask');
   box.append(el('p','act',o.feature+' · '+a.act),el('p',null,o.title||o.file),el('p','muted',a.how));
+  if(o.at){const ms=Date.now()-o.at,at=ms>864e5?new Date(o.at).toLocaleString():hm(o.at),w=el('p','muted',ms<60e3?'⏱ Vừa tới lượt bạn ('+at+')':'⏱ Đã chờ bạn '+durLong(ms)+' (từ '+at+')');w.style.color=waitCol(ms);w.style.fontWeight='700';box.append(w)}
   if(a.say){const p=el('p','say');p.append(document.createTextNode('Nói với Master: '),el('code',null,a.say));box.append(p)}
   (o.sections||[]).forEach((x,i)=>{const k=o.path+'#'+x.title,d=el('details');
    d.open=OPEN.has(k)?OPEN.get(k):/cách thử/i.test(x.title); // mặc định mở mục "Cách thử"; nhớ lựa chọn của bạn
