@@ -338,6 +338,7 @@ const PAGE = String.raw`<!doctype html>
 @media (prefers-color-scheme:dark){:root{--bg:#1d1a17;--paper:#2a2520;--ink:#0e0c0a;--fg:#f2ebdf;--fg2:#bcae9c;--line:#4a4036;--accent:#8fb4ff;
 --run:#6bd79f;--runbg:#1d3a2b;--wait:#f2b44f;--waitbg:#3d2f16;--bad:#ff8f8f;--badbg:#3f2020}}
 *{box-sizing:border-box}
+html{overflow-anchor:none} /* tự giữ chỗ cuộn bằng keepScroll() */
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:16px}
 main{margin:0 auto} /* rộng hết màn hình; văn phòng tự xếp thêm bàn, thêm phòng chờ theo độ rộng */
 .banner p,.ask,#needBox>.muted,.legend span{max-width:130ch} /* dòng chữ quá dài thì khó đọc */
@@ -402,7 +403,12 @@ h2{font:700 12.5px ui-monospace,Consolas,monospace;text-transform:uppercase;lett
  .fish{animation:swim 7s ease-in-out infinite;transform-box:fill-box;transform-origin:center}.fish.f2{animation-duration:9s;animation-delay:-4s}
  @keyframes swim{0%{transform:translateX(0)}45%{transform:translateX(36px)}50%{transform:translateX(36px) scaleX(-1)}95%{transform:translateX(0) scaleX(-1)}100%{transform:translateX(0)}}
  .bubl circle{animation:rise 2.4s linear infinite}.bubl circle:nth-child(2){animation-delay:.8s}.bubl circle:nth-child(3){animation-delay:1.6s}@keyframes rise{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-22px);opacity:0}}}
-.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:#e9dcc6;padding:6px 4px 2px}
+/* chú thích: bảng nổi góc dưới bên trái, mở bằng nút ❔ CHÚ THÍCH trên đầu trang */
+button.badge{cursor:pointer;color:var(--fg);font-family:ui-monospace,Consolas,monospace}
+button.badge[aria-expanded="true"]{background:var(--waitbg);color:var(--wait)}
+#help{position:fixed;left:16px;bottom:16px;width:min(620px,calc(100% - 32px));max-height:75vh;overflow:auto;z-index:6}
+#help ul{margin:4px 0 8px;padding-left:20px;font-size:13.5px}#help li{margin:2px 0}#help h3{font:700 12px ui-monospace,Consolas,monospace;color:var(--fg2);margin:10px 0 2px}
+#help>button{float:right;font:inherit;font-size:13px;border:2px solid var(--ink);background:var(--paper);color:var(--fg);cursor:pointer;box-shadow:2px 2px 0 var(--ink)}
 details{margin:6px 0}details summary{cursor:pointer;font-weight:600}
 table{border-collapse:collapse;width:100%;font-size:13px;margin-top:4px}
 td{padding:3px 6px;border-top:1px dashed var(--line);vertical-align:top}
@@ -414,19 +420,19 @@ td:last-child{white-space:nowrap}
 </style></head>
 <body><main>
 <header class="pix"><h1 id="proj">VĂN PHÒNG AGENT</h1><span class="sp"></span>
-<span class="badge" id="bFeat"></span><span class="badge" id="bRun"></span><span class="badge warn" id="bNeed"></span><span class="badge" id="bWatch"></span><span class="badge" id="bConn">…</span></header>
+<span class="badge" id="bFeat"></span><span class="badge" id="bRun"></span><span class="badge warn" id="bNeed"></span><span class="badge" id="bWatch"></span><span class="badge" id="bConn">…</span><button type="button" class="badge" id="bHelp" aria-expanded="false" aria-controls="help">❔ CHÚ THÍCH</button></header>
 <section class="pix banner" id="banner" hidden tabindex="0" role="button"></section>
 <section class="pix need" id="needBox"><h2>Cần bạn</h2><div id="need"></div></section>
 <section class="pix scene" aria-label="Văn phòng: mỗi tính năng một dãy bàn">
 <svg id="office" role="img" aria-label="Văn phòng agent"></svg>
 <svg id="walk" aria-hidden="true"></svg>
 <svg id="pets" aria-hidden="true"></svg>
-<div class="legend" id="legend"></div>
 </section>
-<section class="pix"><h2>File của từng tính năng</h2><div id="files"></div></section>
+<section class="pix" id="filesBox"><h2>File của từng tính năng</h2><div id="files"></div></section>
 <p class="muted">Trang chỉ đọc, tự làm mới 3 giây một lần. Bấm vào nhân vật để xem chi tiết. Trả lời và duyệt: nói với Master.</p>
 </main>
 <section class="pix" id="detail" aria-live="polite"></section>
+<section class="pix" id="help" hidden aria-label="Chú thích văn phòng"><button type="button" id="helpClose">Đóng</button><h2>Chú thích</h2><div id="legend"></div></section>
 <script>
 const COLORS=['#2f6fe0','#1f9a6e','#e07a1f','#8b4fd0','#d8457f','#0f8f9f','#a0782a'];
 const HAIR=['#3b2a20','#7a4a22','#c9a24a','#2d2d3a','#a33a2a','#5a3a2a','#1f1a17','#6b3d1e'];
@@ -497,15 +503,16 @@ function sofaBack(x,y,w,c){let s=RR(x,y+9,w,19,7,c,K(1))+RR(x+3,y+11,w-6,3,1.5,'
  for(let k=1;k<w/32;k++)s+=R(x+k*32,y+12,1,12,tint(c,-.2));return s}
 function sofaArms(x,y,w,c){return RR(x-6,y+17,12,17,5,c,K(1))+RR(x+w-6,y+17,12,17,5,c,K(1))+RR(x-4,y+18,8,3,1.5,'rgba(255,255,255,.22)')+RR(x+w-4,y+18,8,3,1.5,'rgba(255,255,255,.22)')}
 // Tường phòng chờ: cột ngăn, TV báo số việc, biển tên
-function loungeWall(run,need,done){
- let s=RR(-150,22,92,54,3,'#2d2d3a',K(1))+RR(-146,26,84,46,2,'url(#scr)')+R(-110,76,12,4,'#2d2d3a')+RR(-118,79,28,3,1.5,'#2d2d3a')
-  +T(-104,39,7,'#7de0a0','ĐANG CHẠY '+run)+T(-104,52,7,need?'#ff9c9c':'#ddd3c5','CHỜ BẠN '+need)+T(-104,65,7,'#ffe066','XONG '+done);
- s+=RR(-142,86,76,14,3,'#3b2a20',K(.6))+T(-104,96,7.5,'#f2c14e','PHÒNG CHỜ')+plantBig(-176,FLOOR_Y)+sconce(-40,30);
- return s+R(-8,0,8,FLOOR_Y,'#8a5a3a')+R(-7,0,2,FLOOR_Y,'#a87250')}
+function loungeWall(run,need,done){const tx=LW>=290?L0+165:L0+88;
+ let s=RR(tx-46,22,92,54,3,'#2d2d3a',K(1))+RR(tx-42,26,84,46,2,'url(#scr)')+R(tx-6,76,12,4,'#2d2d3a')+RR(tx-14,79,28,3,1.5,'#2d2d3a')
+  +T(tx,39,7,'#7de0a0','ĐANG CHẠY '+run)+T(tx,52,7,need?'#ff9c9c':'#ddd3c5','CHỜ BẠN '+need)+T(tx,65,7,'#ffe066','XONG '+done);
+ s+=RR(tx-38,86,76,14,3,'#3b2a20',K(.6))+T(tx,96,7.5,'#f2c14e','PHÒNG CHỜ')+plantBig(L0+16,FLOOR_Y)+sconce(LR-40,30);
+ if(LW>=290)s+=picture(L0+36,30)+sconce(L0+86,30)+plantBig(LR-22,FLOOR_Y);
+ return s+R(LR-8,0,8,FLOOR_Y,'#8a5a3a')+R(LR-7,0,2,FLOOR_Y,'#a87250')}
 // Vách ngăn phòng chờ với văn phòng, chừa lối đi ở các lối ngang
-function partition(gaps,H){let s='',a=FLOOR_Y;
- gaps.slice().sort((p,q)=>p-q).forEach(g=>{if(g-22>a)s+=RR(-7,a,6,g-22-a,2,'#a8794c',K(.8));a=Math.max(a,g+6)});
- return s+(H>a?RR(-7,a,6,H-a,2,'#a8794c',K(.8)):'')}
+function partition(x,gaps,H){let s='',a=FLOOR_Y;
+ gaps.slice().sort((p,q)=>p-q).forEach(g=>{if(g-22>a)s+=RR(x-7,a,6,g-22-a,2,'#a8794c',K(.8));a=Math.max(a,g+6)});
+ return s+(H>a?RR(x-7,a,6,H-a,2,'#a8794c',K(.8)):'')}
 function fish(x,y,c){return P('M'+(x-4)+' '+y+' l-4 -3 l0 6z',c,K(.5))+E(x,y,4.5,2.6,c,K(.5))+C(x+2,y-.6,.6,OL)}
 function aquarium(x,b){return RR(x,b-20,76,20,2,'#8a5634',K(1))+R(x+3,b-13,70,1,'#6e4228')
  +RR(x+2,b-62,72,42,3,'#bfe7f7',K(1))+R(x+4,b-58,68,36,'#6fc3e6')+R(x+4,b-28,68,6,'#e8d29a')
@@ -527,8 +534,12 @@ function vending(x,b){let s=RR(x,b-52,40,52,3,'#c94040',K(1))+RR(x+5,b-47,22,34,
 function dogBed(x,b){return E(x,b+3,17,6,'#8a5a3a',K(.9))+E(x,b+2,13,3.8,'#ecd8b6')+RR(x+19,b+2,8,2,1,'#fbfbf7',K(.4))+C(x+19,b+2,1.5,'#fbfbf7',K(.4))+C(x+27,b+2,1.5,'#fbfbf7',K(.4))
  +E(x-26,b+2,6,2.4,'#3f7ee0',K(.6))+E(x-26,b+1,4,1.2,'#c98d52')}
 // Góc giải trí dưới phòng chờ, từ lối d0 tới lối dưới cùng laneB
-function playCorner(d0,laneB){let s=aquarium(-182,d0+66)+arcade(-92,d0+66)+foosball(-182,d0+132)+vending(-96,d0+132)+dogBed(BED_X,laneB-4)+plantBig(-44,laneB-8);
- for(let y=d0+200,i=0;y<=laneB-56;y+=66,i++)s+=i%2?bookshelf(-182,y-56,48,56):plantBig(-160,y);
+// Phòng chờ rộng 300: bể cá, máy game, máy bán nước, bi lắc trên một hàng; hẹp 192: hai hàng
+function playCorner(d0,laneB){let s,y0;
+ if(LW>=290){s=aquarium(L0+10,d0+70)+arcade(L0+96,d0+70)+vending(L0+138,d0+70)+foosball(L0+190,d0+70);y0=d0+136}
+ else{s=aquarium(L0+10,d0+66)+arcade(L0+100,d0+66)+foosball(L0+10,d0+132)+vending(L0+96,d0+132);y0=d0+200}
+ s+=dogBed(BED_X,laneB-4)+plantBig(LR-44,laneB-8);
+ for(let y=y0,i=0;y<=laneB-56;y+=66,i++)s+=i%2?bookshelf(L0+10,y-56,48,56):plantBig(L0+32,y);
  return s}
 function bunting(x0,x1,y,sag){const c=['#e05555','#f2c14e','#4fa35a','#3f7ee0','#9a5fd6'];
  let s=LN('M'+x0+' '+y+' Q'+(x0+x1)/2+' '+(y+sag*2)+' '+x1+' '+y,'#7a3d20',.8);const n=Math.floor((x1-x0)/13);
@@ -774,19 +785,23 @@ const CW=0.6; // độ rộng một ký tự monospace so với cỡ chữ
 const cut=(t,n)=>t.length>n?t.slice(0,Math.max(1,n-1))+'…':t;
 // Toạ độ văn phòng bắt đầu từ x=0, rộng OW. Tường cao tới FLOOR_Y. Các dãy bàn từ LX tới BR, cách nhau GAP (lối đi cho thú cưng).
 // Lối đi thảm đỏ từ AX, rộng AW, chính giữa là bàn của bạn. TOP: dãy bàn đầu tiên. Dưới cùng là góc nghỉ.
-// Màn hình rộng (WIDE): thêm cột phòng chờ và góc giải trí rộng LW ở bên trái, toạ độ âm (từ -LW tới 0).
+// Từ trái sang phải: phòng chờ và góc giải trí (màn rộng, rộng LW, từ L0 tới LR), cột của bạn (bàn sếp ở trên,
+// lối đi thảm đỏ chạy xuống, rộng BW, từ -BW tới 0), rồi các phòng ban (từ 0 tới OW). Toạ độ phòng ban giữ như cũ.
 // Khung nhìn (viewBox) từ VX, rộng VW; khung càng rộng thì mỗi hàng càng nhiều bàn, nhân vật giữ gần đúng cỡ.
-const FLOOR_Y=118, LX=24, AW=48, STEP=98, ROW_H=130, HEAD=30, TOP=192, GAP=24, LW=192, HOLE_X=284;
-const PX_PER_UNIT=1.6, MIN_WIDE_PX=1.3; // cỡ hiển thị mong muốn, và cỡ nhỏ nhất vẫn chịu hiện cột trái
-let WIDE=false, VX=0, VW=720, OW=720, AX=652, BR=640, OWNER_X=676, PER_ROW=5, BED_X=200;
-function layout(){
- const sc=$('.scene'),cw=Math.max(320,(sc&&sc.clientWidth||1212)-12);
- WIDE=cw/(LW+720)>=MIN_WIDE_PX;
- VX=WIDE?-LW:0;
- VW=Math.max(WIDE?LW+720:720,Math.round(cw/PX_PER_UNIT/4)*4);
- OW=VW+VX;AX=OW-68;BR=AX-12;OWNER_X=AX+AW/2;XR=OWNER_X;
+const FLOOR_Y=118, LX=24, AW=48, BW=72, STEP=98, ROW_H=130, HEAD=30, TOP=192, GAP=24, HOLE_X=284;
+// cỡ hiển thị mong muốn (điểm ảnh mỗi đơn vị); cỡ nhỏ nhất còn hiện phòng chờ; cỡ nhỏ nhất khi thu cảnh cho vừa chiều cao cửa sổ
+const PX_PER_UNIT=1.6, MIN_WIDE_PX=1.2, MIN_PX=0.9;
+let WIDE=false, LW=0, L0=-BW, LR=-BW, VX=-BW, VW=792, OW=720, AX=-60, BR=708, OWNER_X=-36, PER_ROW=5, BED_X=200, SCENE_PX=1.6;
+// Chiều cao dành cho cảnh văn phòng: cả cửa sổ, trừ khung viền của khối (padding 6 và viền 3 mỗi bên)
+const sceneAvail=()=>Math.max(420,innerHeight-20);
+function layout(vwMin){
+ const sc=$('.scene'),cw=Math.max(320,(sc&&sc.clientWidth||1212)-12),fit=w=>cw/(w+BW+720)>=MIN_WIDE_PX;
+ LW=fit(300)?300:fit(192)?192:0;WIDE=LW>0; // phòng chờ rộng 300 (7 chỗ một hàng) hay 192 (4 chỗ), màn hẹp thì không có
+ LR=-BW;L0=LR-LW;VX=L0;
+ VW=Math.max(LW+BW+720,Math.round(cw/PX_PER_UNIT/4)*4,vwMin||0);
+ OW=VW+VX;BR=OW-12;OWNER_X=-BW/2;XR=OWNER_X;AX=OWNER_X-AW/2;
  PER_ROW=Math.max(5,Math.floor((BR-LX-126)/STEP)); // một dãy đủ PER_ROW bàn rộng 126+PER_ROW*STEP, vừa khít BR-LX
- BED_X=WIDE?-LW+60:200;
+ BED_X=WIDE?L0+60:200;SCENE_PX=cw/VW;
 }
 // Ngày, chiều tà, đêm theo giờ thật của máy (không theo chế độ tối của hệ điều hành).
 // Xem thử giờ khác: thêm ?gio=21 vào địa chỉ trang
@@ -845,7 +860,7 @@ function station(f,id,a,x,w,top,isMaster,color){
 }
 
 function build(){
- layout();timeOfDay();
+ timeOfDay();
  const byId=Object.fromEntries(S.agents.map(a=>[a.id,a]));
  const now=Date.now();
  // tính năng vừa chuyển sang "xong" ở lần làm mới này: pháo giấy 6 giây
@@ -858,44 +873,57 @@ function build(){
   f.items.forEach(it=>{if(it.kind!=='tasks')return;const q=PREV_ITEM.get(it.path);
    if(q&&!TFIN(q)&&TFIN(it.status)&&!FIN(f.status))celeb.push({f,it});PREV_ITEM.set(it.path,it.status)})});
  PARTY=PARTY.filter(p=>now-p.at<6000);
- // tính năng đã xong rời văn phòng (chỉ còn trên bảng trắng); màu giữ theo thứ tự gốc
- const blocks=S.features.map((f,i)=>[f,i]).filter(([f])=>f.status!=='done'&&f.status!=='delivered').map(([f,i])=>{
-  const ms=f.members.filter(m=>m===f.master);
-  const others=f.members.filter(m=>m!==f.master).sort((a,b)=>{const ra=(byId[a]||{}).role||'',rb=(byId[b]||{}).role||'';return ra===rb?a.localeCompare(b):(ra==='coder'?-1:rb==='coder'?1:ra.localeCompare(rb))});
-  const rows=Math.max(1,Math.ceil(others.length/PER_ROW)),cols=Math.max(1,Math.min(PER_ROW,others.length));
-  return{f,color:COLORS[i%COLORS.length],master:ms[0]||f.master||'',others,rows,w:126+cols*STEP,h:HEAD+rows*ROW_H+6};
- });
- const busy=new Set(blocks.flatMap(b=>[b.master,...b.others]));
- const free=S.agents.filter(a=>!busy.has(a.id));
+ // Xếp chỗ. Cảnh cao hơn cửa sổ thì nới khung rộng ra (cảnh thu nhỏ lại, mỗi hàng nhiều bàn hơn nên cũng thấp đi)
+ // tới khi vừa, nhưng không nhỏ hơn MIN_PX điểm ảnh mỗi đơn vị
+ let blocks,busy,free,lanes,laneL,PERR=4,RROWS=0,CAP=5,d0=0,H=0,laneB=0,vwMin=0;
+ for(let pass=0;pass<24;pass++){
+  layout(vwMin);
+  // tính năng đã xong rời văn phòng (chỉ còn trên bảng trắng); màu giữ theo thứ tự gốc
+  blocks=S.features.map((f,i)=>[f,i]).filter(([f])=>f.status!=='done'&&f.status!=='delivered').map(([f,i])=>{
+   const ms=f.members.filter(m=>m===f.master);
+   const others=f.members.filter(m=>m!==f.master).sort((a,b)=>{const ra=(byId[a]||{}).role||'',rb=(byId[b]||{}).role||'';return ra===rb?a.localeCompare(b):(ra==='coder'?-1:rb==='coder'?1:ra.localeCompare(rb))});
+   const rows=Math.max(1,Math.ceil(others.length/PER_ROW)),cols=Math.max(1,Math.min(PER_ROW,others.length));
+   return{f,color:COLORS[i%COLORS.length],master:ms[0]||f.master||'',others,rows,w:126+cols*STEP,h:HEAD+rows*ROW_H+6};
+  });
+  busy=new Set(blocks.flatMap(b=>[b.master,...b.others]));
+  free=S.agents.filter(a=>!busy.has(a.id));
+  // các dãy bàn rộng vừa đủ số bàn; dãy nhỏ xếp cạnh nhau trên một tầng nếu đủ chỗ; giữa các tầng là lối đi cho thú cưng
+  lanes=[q4(TOP-12)];let y=TOP,shelf=null;const shelves=[];
+  blocks.forEach(b=>{if(!shelf||shelf.x+b.w>BR){shelf={x:LX,h:0,items:[]};shelves.push(shelf)}b.x=shelf.x;shelf.x+=b.w+16;shelf.items.push(b);shelf.h=Math.max(shelf.h,b.h)});
+  shelves.forEach(sh=>{sh.items.forEach(b=>{b.y=y;b.hh=sh.h});lanes.push(q4(y+sh.h+GAP/2));y+=sh.h+GAP});
+  if(!blocks.length)lanes.push(q4(TOP+80));
+  laneL=lanes[lanes.length-1];
+  // phòng chờ (màn rộng): mỗi hàng 7 chỗ (2 sofa 3 chỗ, 1 ghế bành) hay 4 chỗ, 1–3 hàng; góc giải trí bên dưới, từ lối d0.
+  // Khung cao bằng phần cao hơn giữa phòng ban và phòng chờ; lối laneB dưới cùng chạy suốt bề ngang (bội số của 4 để nối được)
+  PERR=LW>=290?7:4;RROWS=WIDE?Math.min(3,Math.max(1,Math.ceil(free.length/PERR))):0;CAP=WIDE?RROWS*PERR:5;
+  d0=WIDE?q4(140+(RROWS-1)*104+86):0;
+  laneB=q4(Math.max(laneL+60,WIDE?d0+(LW>=290?112:192):0));H=laneB+14;
+  const avail=sceneAvail(),cw=SCENE_PX*VW;
+  if(H*SCENE_PX<=avail+1||SCENE_PX<=MIN_PX+.001)break;
+  // nới dần 5% một lần: khung rộng ra thì cảnh cũng thấp đi, nên nới từ từ để giữ nhân vật to nhất mà vẫn vừa
+  vwMin=Math.min(Math.ceil(cw/MIN_PX/4)*4,Math.ceil(VW*1.05/4)*4);
+ }
+ // cảnh thấp hơn cửa sổ (màn máy tính) thì kéo dài sàn xuống cho văn phòng chiếm hết chiều cao màn hình;
+ // màn điện thoại (cảnh đã nhỏ hơn MIN_PX) thì thôi, kẻo sàn trống dài
+ if(SCENE_PX>=MIN_PX&&H*SCENE_PX<sceneAvail()){laneB=Math.max(laneB,Math.floor((sceneAvail()/SCENE_PX-14)/4)*4);H=laneB+14}
  const done=S.features.filter(f=>f.status==='done'),delivered=S.features.filter(f=>f.status==='delivered');
  // agent đổi khu (cây nước ↔ bàn) so với lần vẽ trước: ghi mốc để ẩn ở chỗ mới tới khi người đi bộ tới nơi
  if(MOTION_OK)S.agents.forEach(a=>{const q=PREV_PLACE.get(a.id),z=busy.has(a.id)?'desk':'cooler';if(q&&q.zone!==z)ARRIVE.set(a.id,now)});
- // vị trí các dãy bàn, các lối đi ngang (cho thú cưng) và góc nghỉ dưới cùng
- // dãy bàn rộng vừa đủ số bàn; các dãy nhỏ xếp cạnh nhau trên một tầng nếu đủ chỗ (màn rộng thì nhiều dãy một tầng)
- const lanes=[q4(TOP-12)];let y=TOP,shelf=null;const shelves=[];
- blocks.forEach(b=>{if(!shelf||shelf.x+b.w>BR){shelf={x:LX,h:0,items:[]};shelves.push(shelf)}b.x=shelf.x;shelf.x+=b.w+16;shelf.items.push(b);shelf.h=Math.max(shelf.h,b.h)});
- shelves.forEach(sh=>{sh.items.forEach(b=>{b.y=y;b.hh=sh.h});lanes.push(q4(y+sh.h+GAP/2));y+=sh.h+GAP});
- if(!blocks.length)lanes.push(q4(TOP+80));
- const laneL=lanes[lanes.length-1];
- // phòng chờ (màn rộng): mỗi hàng 4 chỗ (sofa 3 chỗ, ghế bành 1 chỗ), 2–3 hàng; góc giải trí bên dưới, từ lối d0.
- // Khung cao bằng phần cao hơn giữa văn phòng và cột trái; lối laneB dưới cùng chạy suốt bề ngang
- const RROWS=WIDE?Math.min(3,Math.max(2,Math.ceil(free.length/4))):0,CAP=WIDE?RROWS*4:5,d0=WIDE?q4(140+(RROWS-1)*104+86):0;
- const H=WIDE?Math.max(laneL+74,d0+204):laneL+74,laneB=H-14;
  const need=S.owner.length+(S.masters||[]).filter(m=>m.waitOwner).length;
  const watch=(S.watch||{state:'never'}).state;
  // chỗ của từng agent ở lần vẽ này: để so với lần trước và cho đi bộ
  const place=new Map();
  // ---- tường, sàn, đồ trang trí
- let s=defs()+wall()+R(VX,FLOOR_Y,VW,H-FLOOR_Y,'url(#fl)')+(WIDE?R(-LW,FLOOR_Y,LW,H-FLOOR_Y,'url(#lf)'):'')+R(VX,FLOOR_Y,VW,5,'rgba(60,30,10,.12)');
+ let s=defs()+wall()+R(VX,FLOOR_Y,VW,H-FLOOR_Y,'url(#fl)')+(WIDE?R(L0,FLOOR_Y,LW,H-FLOOR_Y,'url(#lf)'):'')+R(VX,FLOOR_Y,VW,5,'rgba(60,30,10,.12)');
  if(need)s+=P('M298 118 l50 0 l16 28 l-82 0z','rgba(255,214,140,.25)');
- s+=aisle(AX,FLOOR_Y,AW,H-FLOOR_Y)+bunting(64,290,11,4)+bunting(514,AX-6,11,3);
+ s+=aisle(AX,FLOOR_Y,AW,H-FLOOR_Y)+bunting(64,290,11,4)+bunting(514,OW-6,11,3);
  s+=bookshelf(10,28,48,84)+cooler(66)+pantry(102)+sconce(134,30)+windowPane(152,18,80,46)+clock(266,40,watch==='running')+door(298,need>0)
-  +P('M'+(HOLE_X-5)+' 117.5 l0 -4 q5 -7 10 0 l0 4z','#2b1d16')+whiteboard()+calendar(520,20)+poster(560,16)+fillWall(600,AX-60)+sconce(AX-48,30)+plantBig(AX-36,FLOOR_Y);
+  +P('M'+(HOLE_X-5)+' 117.5 l0 -4 q5 -7 10 0 l0 4z','#2b1d16')+whiteboard()+calendar(520,20)+poster(560,16)+fillWall(600,OW-52)+sconce(OW-40,30)+plantBig(OW-28,FLOOR_Y);
  s+=lounge(laneB-4,!WIDE);
- if(WIDE)s+=loungeWall(S.agents.filter(a=>a.running).length,need,done.length)+partition(lanes.concat(laneB),H)
-  +RR(-186,128,172,RROWS*104-10,10,'#c96f5a',' fill-opacity=".18" stroke="#c96f5a" stroke-opacity=".5" stroke-width="1.5"')+playCorner(d0,laneB);
+ if(WIDE)s+=loungeWall(S.agents.filter(a=>a.running).length,need,done.length)+partition(LR,lanes.concat(laneB),H)
+  +RR(L0+6,128,LW-20,RROWS*104-10,10,'#c96f5a',' fill-opacity=".18" stroke="#c96f5a" stroke-opacity=".5" stroke-width="1.5"')+playCorner(d0,laneB);
  if(DUSK)s+=R(VX,0,VW,H,'rgba(255,140,60,.08)');
- if(NIGHT)s+=R(VX,0,VW,H,'rgba(20,30,70,.18)')+E(134,34,26,20,'url(#glow)')+E(AX-48,34,26,20,'url(#glow)')+E(22,laneB-52,30,26,'url(#glow)')+(WIDE?E(-40,34,26,20,'url(#glow)')+E(-104,49,56,36,'url(#glow)'):'');
+ if(NIGHT)s+=R(VX,0,VW,H,'rgba(20,30,70,.18)')+E(134,34,26,20,'url(#glow)')+E(OW-40,34,26,20,'url(#glow)')+E(22,laneB-52,30,26,'url(#glow)')+(WIDE?E(LR-40,34,26,20,'url(#glow)')+E(LW>=290?L0+165:L0+88,49,56,36,'url(#glow)'):'');
  if(need)s+=bubble(323,6,'!'+need,'bad');
  // ---- bảng trắng: các tính năng đang làm, rồi các tính năng đã xong
  s+=T(436,26,8.5,'#3b2a20','CÁC TÍNH NĂNG');
@@ -907,14 +935,19 @@ function build(){
  PARTY.forEach(p=>{s+=confetti(436,14,now-p.at)+T(436,124,8.5,'#b23030','🎉 '+p.id+' xong!')});
  // ---- phòng chờ (màn rộng): agent rảnh ngồi sofa, mỗi người một việc (uống nước, đọc sách, xem điện thoại, ngủ gật);
  // có việc chờ thì không ngủ. Biển tên so le hai hàng để không đè nhau
- if(WIDE)for(let r=0;r<RROWS;r++){const y=140+r*104,SX=[-162,-130,-98,-56];
-  s+=sofaBack(-178,y,96,'#c8775a')+sofaBack(-72,y,32,'#5b7fbf');
-  free.slice(r*4,r*4+4).forEach((a,j)=>{const k=r*4+j,cx=SX[j],st=stateOf(a,'');
+ // mỗi hàng: sofa 3 chỗ (96), [sofa 3 chỗ], ghế bành 1 chỗ (32), cách nhau 10
+ const FURN=LW>=290?[[L0+14,96,'#c8775a'],[L0+120,96,'#c8775a'],[L0+226,32,'#5b7fbf']]:[[L0+14,96,'#c8775a'],[L0+120,32,'#5b7fbf']];
+ const SX=FURN.flatMap(([x,w])=>w===96?[x+16,x+48,x+80]:[x+16]);
+ if(WIDE)for(let r=0;r<RROWS;r++){const y=140+r*104;
+  FURN.forEach(([x,w,c])=>s+=sofaBack(x,y,w,c));
+  free.slice(r*PERR,(r+1)*PERR).forEach((a,j)=>{const k=r*PERR+j,cx=SX[j],st=stateOf(a,'');
    let act=['cup','book','phone','nap'][hashN(a.id)%4];if(act==='nap'&&st.kind!=='idle')act='phone';
    place.set(a.id,{x:cx,y,zone:'cooler',say:y-34,foot:y+44});
    s+=agG(a.id,st.label,selBox(cx-14,y-21,28,80)+standFront(cx,y,look(a.id),a.role,'#8f9bb0',act,true).replace('class="sip"','class="sip" style="animation-delay:-'+(k*0.9)+'s"')
     +bubble(cx,y-18,act==='nap'&&st.txt==='z'?'zz':st.txt,st.kind)+label(cx,y+40+(j%2)*18,a.id,shortOf(a,st,false),st.kind,56))});
-  s+=sofaArms(-178,y,96,'#c8775a')+sofaArms(-72,y,32,'#5b7fbf')}
+  FURN.forEach(([x,w,c])=>s+=sofaArms(x,y,w,c))}
+ if(WIDE&&free.length>CAP)s+=T(L0+LW/2,140+RROWS*104-8,7,'#3b2a20','… và '+(free.length-CAP)+' người nữa (xem chú thích)');
+ if(!WIDE&&free.length>5)s+=T(232,166,7,'#3b2a20','+'+(free.length-5)+' người nữa');
  // ---- cây nước (màn hẹp): agent rảnh đứng uống nước
  if(!WIDE)free.slice(0,5).forEach((a,k)=>{const cx=162+k*28,y=80,st=stateOf(a,'');
   place.set(a.id,{x:cx,y,zone:'cooler',say:y-34,foot:y+44});
@@ -967,27 +1000,39 @@ function build(){
   an.onfinish=()=>g.remove();setTimeout(()=>g.remove(),WALK_MS+800)}); // dự phòng: tab chạy nền thì hoạt hình có thể dừng
  // ---- lối đi cho chó, mèo, chuột: dải sàn sát chân tường, lối giữa các dãy bàn, hai lối dọc hai bên, lối trước góc nghỉ.
  // Màn rộng: các lối ngang đi xuyên vách sang phòng chờ, thêm lối dọc trong phòng chờ và lối quanh góc giải trí
- const segs=[[XL,BASE_Y,XR,BASE_Y],[XL,BASE_Y,XL,laneB],[XR,BASE_Y,XR,laneL]].concat(WIDE
-  ?lanes.map(v=>[LV,v,XR,v]).concat([[LV,lanes[0],LV,laneB],[LL,d0,LV,d0],[LL,d0,LL,laneB],[LL,laneB,AX-20,laneB]])
-  :lanes.map(v=>[XL,v,XR,v]).concat([[XL,laneB,AX-20,laneB]]));
+ // Lối dọc: theo thảm đỏ (XR) và mép phải phòng ban (XO); màn rộng thêm lối dọc sát vách phòng chờ (LV) và mép trái (LL)
+ const LV=LR-20,LL=L0+16,XO=q4(OW-16),XW=WIDE?LV:XR;
+ const segs=[[XR,BASE_Y,XO,BASE_Y],[XR,BASE_Y,XR,laneB],[XO,BASE_Y,XO,laneB],[WIDE?LL:XR,laneB,XO,laneB]].concat(lanes.map(v=>[XW,v,XO,v]),
+  WIDE?[[LV,lanes[0],LV,laneB],[LL,d0,LV,d0],[LL,d0,LL,laneB]]:[]);
  const sig=JSON.stringify(segs);if(sig!==GSIG){GSIG=sig;setGraph(makeGraph(segs),BED_X+','+laneB)}
  svg.querySelectorAll('.ag').forEach(g=>{const go=()=>{openId=g.dataset.id;build();showDetail()};g.addEventListener('click',go);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}})});
  const ow=svg.querySelector('#owner'),toNeed=()=>$('#needBox').scrollIntoView({behavior:MOTION_OK?'smooth':'auto',block:'start'});
  ow.addEventListener('click',toNeed);ow.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toNeed()}});
  // ăn mừng (sau khi đã có chỗ của mọi người ở lần vẽ này)
  celeb.forEach(c=>c.big?bigParty(c.f):smallParty(c.f,c.it));
- const lg=$('#legend');lg.replaceChildren();
- lg.append(el('span',null,'Màn hình chạy code, tay gõ phím = đang làm · gõ ngón tay = có việc chờ (số trên bong bóng) · giơ tay "?" = đang chờ Master trả lời · bọ đỏ trên bàn = có lỗi Tester báo · Master đứng dậy quay lại giơ giấy "!" = chờ bạn · gật gù "z" = rảnh · bóng mờ "?" = ID chưa khai trong agents.txt'),
-  el('span',null,'Cửa mở = có việc chờ bạn · đồng hồ đứng, đèn tắt = watch.sh không chạy · rê chuột vào ai để xem chi tiết, bấm để mở · bấm bàn "BẠN" để tới mục Cần bạn · thỉnh thoảng bạn rời bàn đi một vòng văn phòng · bấm chó: nó đuổi người gần nhất · bấm mèo: nó nhảy lên nằm cạnh bàn phím · bấm chuột: nó chạy về hang · việc kiểm tra đạt: cả dãy reo · tính năng xong: pháo hoa (bấm để tắt) · ⏱ cạnh Master = đã chờ bạn bao lâu (xanh dưới 30 phút, vàng dưới 2 giờ, đỏ lâu hơn) · trời ngoài cửa sổ theo giờ thật · lâu lâu có tên trộm ghé (bấm vào để đuổi)'));
- if(free.length>CAP)lg.append(el('span',null,'Rảnh, không hiện hết: '+free.slice(CAP).map(a=>a.id).join(', ')));
+ // chú thích (bảng #help): chỉ vẽ lại khi đang mở, hoặc khi danh sách người rảnh không hiện hết đổi
+ const over=free.length>CAP?free.slice(CAP).map(a=>a.id).join(', '):'';
+ if(!$('#help').hidden||LEGEND_OVER!==over){LEGEND_OVER=over;legend(over)}
 }
+let LEGEND_OVER=null;
+const LEGEND=[
+ ['Nhân vật',['Màn hình chạy code, tay gõ phím: đang làm','Gõ ngón tay: có việc chờ (số trên bong bóng)','Giơ tay "?": đang chờ Master trả lời câu hỏi','Bọ đỏ trên bàn: có lỗi Tester báo',
+  'Master đứng dậy quay lại giơ giấy "!": chờ bạn; ⏱ bên cạnh là đã chờ bao lâu (xanh dưới 30 phút, vàng dưới 2 giờ, đỏ lâu hơn)','Gật gù "z": rảnh; ở phòng chờ thì ngồi sofa','Bóng mờ "?": ID chưa khai trong agents.txt',
+  'Thỉnh thoảng một người hiện bong bóng việc mình đang làm']],
+ ['Văn phòng',['Cửa mở: có việc chờ bạn','Đồng hồ đứng, đèn tắt: watch.sh không chạy','Trời ngoài cửa sổ theo giờ thật (xem thử giờ khác: thêm ?gio=21 vào địa chỉ trang)',
+  'Một việc kiểm tra đạt: cả dãy reo, có pháo giấy','Một tính năng xong: pháo hoa toàn màn hình (bấm bất kỳ đâu để tắt)','Thỉnh thoảng bạn rời bàn đi một vòng văn phòng']],
+ ['Bấm thử',['Rê chuột vào một người để xem trạng thái, bấm để mở chi tiết (file đang chờ, log)','Bấm bàn "BẠN": tới mục Cần bạn','Bấm chó: nó đuổi người gần nhất',
+  'Bấm mèo: nó nhảy lên bàn nằm cạnh bàn phím','Bấm chuột: nó chạy về hang','Lâu lâu có tên trộm ghé (chỉ là trò vui): bấm vào để đuổi']]];
+function legend(over){const lg=$('#legend');lg.replaceChildren();
+ LEGEND.forEach(([h,items])=>{const ul=el('ul');items.forEach(t=>ul.append(el('li',null,t)));lg.append(el('h3',null,h),ul)});
+ if(over)lg.append(el('h3',null,'Rảnh, không hiện hết'),el('p',null,over))}
 
 /* ---------- chó, mèo, chuột chạy khắp văn phòng ---------- */
 // Lối đi là lưới điểm cách nhau 4 đơn vị dọc các đoạn thẳng; con vật đi theo đường ngắn nhất (BFS) giữa hai điểm.
 // Chó đi dạo, thỉnh thoảng ra ngồi cạnh bàn bạn hay về ổ ngủ. Chuột chui ra từ lỗ chân tường chạy một vòng rồi về,
 // mèo rượt theo; chuột về lỗ thì mèo ngồi canh. Chó đi sát mèo thì mèo giật mình nhảy lên rồi bỏ chạy.
 // Lớp #pets riêng, không bị thay khi trang làm mới 3 giây.
-const XL=16,BASE_Y=124,LV=-20,LL=-LW+16,q4=v=>Math.round(v/4)*4;let XR=676;
+const BASE_Y=124,q4=v=>Math.round(v/4)*4;let XR=-36;
 let G=null,GSIG='',HOLE='',GUARD='',BED='',SPOT='',DOOR='';const CRIT={};
 // Tên trộm: lâu lâu mới xuất hiện (5–10 phút; chế độ xem thử thì chừng một phút)
 const thiefGap=first=>S&&S.demo?(first?300:900+Math.random()*700):(first?3600+Math.random()*2400:6000+Math.random()*6000);
@@ -999,9 +1044,10 @@ const bossGap=()=>1200+Math.random()*1200; // 60–120 giây giữa hai vòng (n
 const nearNode=(a,max)=>{let best=null;for(let i=0;i<24;i++){const k=randNode(),e=dist(G.get(k),a);if(e>40&&e<=max)return k;if(!best||e<dist(G.get(best),a))best=k}return best};
 let NEED_N=0;
 // Bạn rời bàn hay về bàn: vẽ lại văn phòng ngay để bàn có (hay không có) người
-const setAway=()=>{if(S)build()};
+const setAway=()=>{if(S)keepScroll(build)};
+// Toạ độ đầu, cuối đoạn được làm tròn về bội số của 4, để các đoạn cắt nhau luôn chung điểm (nối được với nhau)
 function makeGraph(segs){const g=new Map();
- segs.forEach(([x0,y0,x1,y1])=>{const n=Math.max(Math.abs(x1-x0),Math.abs(y1-y0))/4,sx=Math.sign(x1-x0)*4,sy=Math.sign(y1-y0)*4;let prev=null;
+ segs.map(s=>s.map(q4)).forEach(([x0,y0,x1,y1])=>{const n=Math.max(Math.abs(x1-x0),Math.abs(y1-y0))/4,sx=Math.sign(x1-x0)*4,sy=Math.sign(y1-y0)*4;let prev=null;
   for(let i=0;i<=n;i++){const x=x0+sx*i,y=y0+sy*i,id=x+','+y;if(!g.has(id))g.set(id,{x,y,nb:[]});
    if(prev&&!g.get(id).nb.includes(prev)){g.get(id).nb.push(prev);g.get(prev).nb.push(id)}prev=id}});
  return g}
@@ -1037,7 +1083,7 @@ function setGraph(g,bed){
  if(th.mode!=='away'&&th.mode!=='peek'){th.mode='run';goTo(th,DOOR)}
 }
 // Đi theo đường đã tính; k: số nhịp 50ms đã trôi qua. Trả về true khi tới nơi
-function move(a,k){let left=a.spd*k*(a.boost?1.6:1);const sx=a.x,sy=a.y;
+function move(a,k){let left=a.spd*k*(a.boost?(a.flee?2.2:1.6):1);const sx=a.x,sy=a.y;
  while(left>1e-6&&a.path.length){const n=G.get(a.path[0]);if(!n){a.path=[];break}
   const dx=n.x-a.x,dy=n.y-a.y;
   if(dx){a.dir=Math.sign(dx);if(Math.abs(dx)<=left){left-=Math.abs(dx);a.x=n.x}else{a.x+=a.dir*left;left=0}}
@@ -1050,7 +1096,7 @@ function think(k){
  [d,c,m,b,th].forEach(a=>{if(a.sayT>0)a.sayT-=k;if(a.jump>0)a.jump-=k});
  // bạn: ngồi bàn một lúc, rồi đi qua vài chỗ ngẫu nhiên, mỗi chỗ đứng nhìn và nói một câu, xong về bàn
  if(b.mode==='desk'){if((b.wait-=k)<=0){b.mode='tour';b.stops=2+Math.floor(Math.random()*3);b.pause=0;goTo(b,nearNode(b,360));setAway();
-  if(d.mode!=='sleep'&&d.mode!=='bed'&&Math.random()<.6){d.mode='follow';d.re=0}}}
+  if(d.mode==='roam'&&Math.random()<.6){d.mode='follow';d.re=0}}}
  else if(b.pause>0){if((b.pause-=k)<=0){if(b.stops>0)goTo(b,nearNode(b,300));else{b.mode='back';goTo(b,SPOT)}}}
  else if(move(b,k)){
   if(b.mode==='back'){b.mode='desk';b.wait=bossGap();if(d.mode==='follow'){d.mode='roam';d.wait=20}setAway()}
@@ -1085,8 +1131,11 @@ function think(k){
  else if(d.mode==='sleep'){if((d.wait-=k)<=0){d.mode='roam';d.wait=0}}
  else if(d.mode==='bed'){if(move(d,k)){d.mode='sleep';d.wait=260+Math.random()*320}}
  // bị bấm: chạy tới người gần nhất rồi sủa vòng quanh, người đó giật mình; không có ai gần thì chạy nhanh ra chỗ xa
- else if(d.mode==='hunt'){d.spd=2.8;if(move(d,k)){d.mode='bark';d.wait=44;say(d,'Gâu gâu!',40);startle(d.tgt)}}
- else if(d.mode==='bark'){if(Math.floor(d.wait/8)!==Math.floor((d.wait-k)/8))d.dir=-d.dir;if((d.wait-=k)<=0){d.mode='roam';d.wait=30}}
+ else if(d.mode==='hunt'){d.spd=2.8;if(move(d,k)){d.mode='bark';d.wait=70;say(d,'Gâu gâu!',40);startle(d.tgt);
+  // chạy qua lại giữa chỗ đứng và một điểm cách vài bước, vừa chạy vừa sủa
+  d.home=nodeAt(d.x,d.y);let n=d.home;for(let i=0;i<4;i++){const nb=G.get(n).nb;n=nb[Math.floor(Math.random()*nb.length)]}d.alt=n}}
+ else if(d.mode==='bark'){d.spd=2.2;if(!d.path.length)goTo(d,nodeAt(d.x,d.y)===d.home?d.alt:d.home);move(d,k);
+  if(d.sayT<=0)say(d,'Gâu gâu!',20);if((d.wait-=k)<=0){d.mode='roam';d.wait=30;d.path=[]}}
  else if(d.mode==='zoom'){d.spd=3.6;if(move(d,k)){d.mode='roam';d.wait=20}}
  // thấy trộm: đuổi theo sủa ầm ĩ tới khi nó ra khỏi cửa
  else if(d.mode==='chaseThief'){d.spd=3;if((d.re-=k)<=0){d.re=6;if(th.mode==='away'||th.mode==='peek'){d.mode='roam';d.wait=20}else goTo(d,nodeAt(th.x,th.y))}move(d,k);if(d.sayT<=0)say(d,'Gâu!',12)}
@@ -1206,18 +1255,20 @@ function catDesk(id){const old=CATDESK;CATDESK=id;
  document.querySelectorAll('#office .ag').forEach(g=>{if(g.dataset.id===old)g.classList.remove('catted');if(id&&g.dataset.id===id)g.classList.add('catted')});
  if(id)react(id,pick(['Ơ kìa mèo!','Mèo ơi…','Gõ sao giờ?']),2600,500)}
 // Người gần con vật a nhất (tính tới chỗ chân họ trên lối đi), trong phạm vi max; bạn đang đi vòng cũng tính
-function nearestPerson(a,max,deskOnly){let best=null,bd=max;
- PLACES.forEach((p,id)=>{if(deskOnly&&p.zone!=='desk')return;const e=Math.abs(p.x-a.x)+Math.abs(p.foot-a.y);if(e<bd){bd=e;best={id,...p}}});
- const b=CRIT.boss;if(!deskOnly&&b&&b.mode!=='desk'){const e=dist(a,b);if(e<bd)best={id:'boss',x:b.x,y:b.y,foot:b.y}}
+// min: bỏ qua người đứng quá sát (để con vật phải chạy một đoạn mới tới)
+function nearestPerson(a,max,deskOnly,min){let best=null,bd=max;min=min||0;
+ PLACES.forEach((p,id)=>{if(deskOnly&&p.zone!=='desk')return;const e=Math.abs(p.x-a.x)+Math.abs(p.foot-a.y);if(e>=min&&e<bd){bd=e;best={id,...p}}});
+ const b=CRIT.boss;if(!deskOnly&&b&&b.mode!=='desk'){const e=dist(a,b);if(e>=min&&e<bd)best={id:'boss',x:b.x,y:b.y,foot:b.y}}
  return best}
 // Bấm vào con vật. Chó: sủa rồi đuổi người gần nhất (không có ai gần thì chạy nhanh ra chỗ xa).
 // Mèo: kêu rồi nhảy lên bàn gần nhất, nằm cạnh bàn phím một lúc (người ngồi đó ngừng gõ). Chuột: chạy thục mạng về hang.
 function poke(n){const a=CRIT[n];if(!a)return;
  if(n==='dog'){say(a,'Gâu!',16);
-  if(MOTION_OK){const tg=nearestPerson(a,320);if(tg){a.tgt=tg;a.mode='hunt';goTo(a,nodeAt(tg.x,tg.foot))}else{a.mode='zoom';goTo(a,farNode(a))}}
+  if(MOTION_OK){const tg=nearestPerson(a,640,false,60);if(tg){a.tgt=tg;a.mode='hunt';goTo(a,nodeAt(tg.x,tg.foot))}
+   if(!tg||!a.path.length){a.mode='zoom';goTo(a,nearNode(a,260))}}
   else if(a.mode==='sleep'){a.mode='roam';a.wait=12}}
  else if(n==='cat'){say(a,'Meo!',16);
-  if(MOTION_OK&&!a.hop&&a.mode!=='ondesk'&&a.mode!=='todesk'){const p=nearestPerson(a,420,true);
+  if(MOTION_OK&&!a.hop&&a.mode!=='ondesk'&&a.mode!=='todesk'){const p=nearestPerson(a,480,true);
    if(p){a.desk=p;a.mode='todesk';goTo(a,nodeAt(p.x,p.foot))}else{a.mode='flee';goTo(a,farNode(a))}}
   else if(a.mode==='nap'){a.mode='roam';a.wait=12}}
  else if(n==='thief'){if(a.mode==='peek'){say(a,'Ối!',16);a.wait=Math.min(a.wait,12);a.scared=true}
@@ -1374,11 +1425,25 @@ function showDetail(){
  if(a.lastLog)d.append(el('p','muted',a.lastLog.name+(a.lastLog.mtime?' · '+new Date(a.lastLog.mtime).toLocaleString():'')),el('pre',null,a.lastLog.tail||'(trống)'));
  else d.append(el('p','muted','Chưa có log (agent subagent hoặc đánh thức tay, hoặc chưa được đánh thức lần nào).'));
 }
+// Giữ nguyên chỗ đang xem khi trang vẽ lại (3 giây một lần) mà các khối phía trên cao lên hay thấp đi
+// (việc mới chờ bạn, dòng thông báo đổi, văn phòng đổi chiều cao): lấy khối đang nằm ở mép trên màn hình làm mốc,
+// vẽ xong thì cuộn bù đúng phần mốc bị đẩy. Đang ở đầu trang thì để yên. Cơ chế giữ chỗ tự động của trình duyệt
+// tắt đi (overflow-anchor) để không bù hai lần.
+function keepScroll(fn){
+ let anc=null,top=0;
+ if(window.scrollY>0)for(const e of document.querySelectorAll('main > header, main > #needBox, main > .scene, main > #filesBox')){
+  const r=e.getBoundingClientRect();if(r.height>0&&r.bottom>0){anc=e;top=r.top;break}}
+ fn();
+ if(anc){const d=anc.getBoundingClientRect().top-top;if(Math.abs(d)>.5)window.scrollBy(0,d)}}
 async function poll(){
- try{const r=await fetch('/api/state',{cache:'no-store'});S=await r.json();const c=$('#bConn');c.textContent='CẬP NHẬT '+new Date().toLocaleTimeString();c.className='badge';render()}
+ try{const r=await fetch('/api/state',{cache:'no-store'});S=await r.json();const c=$('#bConn');c.textContent='CẬP NHẬT '+new Date().toLocaleTimeString();c.className='badge';keepScroll(render)}
  catch(e){const c=$('#bConn');c.textContent='MẤT KẾT NỐI';c.className='badge off'}
 }
 poll();setInterval(poll,3000);
 // Đổi cỡ cửa sổ: xếp lại văn phòng (số bàn mỗi hàng, có hay không cột phòng chờ)
-let resizeT=0;window.addEventListener('resize',()=>{clearTimeout(resizeT);resizeT=setTimeout(()=>{if(S)build()},200)});
+let resizeT=0;window.addEventListener('resize',()=>{clearTimeout(resizeT);resizeT=setTimeout(()=>{if(S)keepScroll(build)},200)});
+// Nút ❔ CHÚ THÍCH trên đầu trang: mở, đóng bảng chú thích (nút Đóng hay phím Esc cũng đóng)
+function setHelp(open){$('#help').hidden=!open;$('#bHelp').setAttribute('aria-expanded',String(open));if(open)legend(LEGEND_OVER||'')}
+$('#bHelp').addEventListener('click',()=>setHelp($('#help').hidden));$('#helpClose').addEventListener('click',()=>setHelp(false));
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#help').hidden)setHelp(false)});
 </script></body></html>`;
