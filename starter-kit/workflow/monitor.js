@@ -336,7 +336,8 @@ const PAGE = String.raw`<!doctype html>
 --run:#6bd79f;--runbg:#1d3a2b;--wait:#f2b44f;--waitbg:#3d2f16;--bad:#ff8f8f;--badbg:#3f2020}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:16px}
-main{max-width:1200px;margin:0 auto}
+main{margin:0 auto} /* rộng hết màn hình; văn phòng tự xếp thêm bàn, thêm phòng chờ theo độ rộng */
+.banner p,.ask,#needBox>.muted,.legend span{max-width:130ch} /* dòng chữ quá dài thì khó đọc */
 .pix{background:var(--paper);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);padding:12px 14px;margin-bottom:16px}
 header.pix{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
 h1{font:700 19px ui-monospace,Consolas,monospace;margin:0;letter-spacing:.02em}
@@ -384,7 +385,10 @@ h2{font:700 12.5px ui-monospace,Consolas,monospace;text-transform:uppercase;lett
  .ag.arrive{animation:arrive 1.45s steps(1) both}@keyframes arrive{0%{opacity:0}100%{opacity:1}}
  .mhand{animation:spin 12s linear infinite}.hhand{animation:spin 144s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
  .conf rect{animation:fall 2.8s linear infinite;transform-origin:center}@keyframes fall{0%{transform:translateY(-6px) rotate(0)}100%{transform:translateY(96px) rotate(540deg)}}
- .blink{animation:bl 1s steps(2) infinite}@keyframes bl{50%{opacity:.35}}}
+ .blink{animation:bl 1s steps(2) infinite}@keyframes bl{50%{opacity:.35}}
+ .fish{animation:swim 7s ease-in-out infinite;transform-box:fill-box;transform-origin:center}.fish.f2{animation-duration:9s;animation-delay:-4s}
+ @keyframes swim{0%{transform:translateX(0)}45%{transform:translateX(36px)}50%{transform:translateX(36px) scaleX(-1)}95%{transform:translateX(0) scaleX(-1)}100%{transform:translateX(0)}}
+ .bubl circle{animation:rise 2.4s linear infinite}.bubl circle:nth-child(2){animation-delay:.8s}.bubl circle:nth-child(3){animation-delay:1.6s}@keyframes rise{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-22px);opacity:0}}}
 .legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:#e9dcc6;padding:6px 4px 2px}
 details{margin:6px 0}details summary{cursor:pointer;font-weight:600}
 table{border-collapse:collapse;width:100%;font-size:13px;margin-top:4px}
@@ -456,14 +460,63 @@ function defs(){return '<defs>'
  +'<pattern id="wp" width="22" height="22" patternUnits="userSpaceOnUse">'+P('M11 6 l2.4 5 l-2.4 5 l-2.4 -5z','#e6d7ba')+C(0,0,1.3,'#e6d7ba')+C(22,0,1.3,'#e6d7ba')+C(0,22,1.3,'#e6d7ba')+C(22,22,1.3,'#e6d7ba')+'</pattern>'
  +'<pattern id="fl" width="80" height="20" patternUnits="userSpaceOnUse">'+R(0,0,80,10,'#dcaa74')+R(0,10,80,10,'#d5a06a')+R(0,0,80,.8,'#b88250')+R(0,10,80,.8,'#b88250')+R(52,0,.8,10,'#b88250')+R(18,10,.8,10,'#b88250')
   +LN('M4 4 q12 -1.6 24 0 t22 0','#e8bb88',.6)+LN('M57 6 q9 1 18 0','#e8bb88',.6)+LN('M24 15 q14 -1.6 28 0','#c8915c',.6)+LN('M60 16 q6 -1 14 0','#c8915c',.6)+'</pattern>'
+ // thảm phòng chờ
+ +'<pattern id="lf" width="18" height="18" patternUnits="userSpaceOnUse">'+R(0,0,18,18,'#b9c7b2')+C(4.5,4.5,1.1,'#a8b9a0')+C(13.5,13.5,1.1,'#a8b9a0')+'</pattern>'
  +'</defs>'}
 /* ---------- tường, sàn ---------- */
-function wall(){
- let s=R(0,0,W,76,'url(#wallg)')+R(0,0,W,76,'url(#wp)')+R(0,0,W,8,'#7a4a2c')+R(0,8,W,2,'#5e3820')
-  +R(0,76,W,36,'#a8bea6')+R(0,73,W,4,'#8aa58a')+R(0,73,W,1,'#c6d6c4');
- for(let x=4;x<W;x+=44)s+=RR(x,82,36,24,2,'none',' stroke="#91aa8f" stroke-width="1.2"');
- return s+R(0,111,W,7,'#8a5a3a')+R(0,111,W,1.5,'#a87250')+R(0,117,W,1,'#5e3820');
+function wall(){const x0=VX,w=VW;
+ let s=R(x0,0,w,76,'url(#wallg)')+R(x0,0,w,76,'url(#wp)')+R(x0,0,w,8,'#7a4a2c')+R(x0,8,w,2,'#5e3820')
+  +R(x0,76,w,36,'#a8bea6')+R(x0,73,w,4,'#8aa58a')+R(x0,73,w,1,'#c6d6c4');
+ for(let x=x0+4;x<x0+w;x+=44)s+=RR(x,82,36,24,2,'none',' stroke="#91aa8f" stroke-width="1.2"');
+ return s+R(x0,111,w,7,'#8a5a3a')+R(x0,111,w,1.5,'#a87250')+R(x0,117,w,1,'#5e3820');
 }
+// Tranh phong cảnh treo tường
+function picture(x,y){return RR(x,y,32,26,1.5,'#c9a24a',K(.9))+R(x+3,y+3,26,20,'#a9dcf5')+C(x+22,y+9,3,'#ffe27a')
+ +P('M'+(x+3)+' '+(y+23)+' l8 -10 l6 6 l5 -5 l7 9z','#5fae55')+P('M'+(x+9)+' '+(y+15)+' l2 -2 l2 2z','#fbfbf7')}
+// Màn hình rộng: lấp phần tường thừa bằng cửa sổ, tranh, tủ sách
+function fillWall(x0,x1){let s='',i=0;
+ const items=[[118,x=>windowPane(x+19,18,80,46)],[44,x=>picture(x+6,30)],[60,x=>bookshelf(x+6,28,48,84)],[44,x=>picture(x+6,26)+sconce(x+22,64)]];
+ for(;;){const [w,f]=items[i%items.length];if(x0+w>x1)break;s+=f(x0);x0+=w;i++}return s}
+/* ---------- phòng chờ và góc giải trí bên trái (màn hình rộng) ---------- */
+// Sofa nhìn thẳng: lưng và đệm vẽ trước người ngồi, tay vịn vẽ sau. y: đỉnh đầu người ngồi
+function sofaBack(x,y,w,c){let s=RR(x,y+9,w,19,7,c,K(1))+RR(x+3,y+11,w-6,3,1.5,'rgba(255,255,255,.2)')+RR(x+2,y+24,w-4,8,3,tint(c,.15),K(.9))
+  +RR(x+3,y+31,4,5,1,'#5e3820')+RR(x+w-7,y+31,4,5,1,'#5e3820');
+ for(let k=1;k<w/32;k++)s+=R(x+k*32,y+12,1,12,tint(c,-.2));return s}
+function sofaArms(x,y,w,c){return RR(x-6,y+17,12,17,5,c,K(1))+RR(x+w-6,y+17,12,17,5,c,K(1))+RR(x-4,y+18,8,3,1.5,'rgba(255,255,255,.22)')+RR(x+w-4,y+18,8,3,1.5,'rgba(255,255,255,.22)')}
+// Tường phòng chờ: cột ngăn, TV báo số việc, biển tên
+function loungeWall(run,need,done){
+ let s=RR(-150,22,92,54,3,'#2d2d3a',K(1))+RR(-146,26,84,46,2,'url(#scr)')+R(-110,76,12,4,'#2d2d3a')+RR(-118,79,28,3,1.5,'#2d2d3a')
+  +T(-104,39,7,'#7de0a0','ĐANG CHẠY '+run)+T(-104,52,7,need?'#ff9c9c':'#ddd3c5','CHỜ BẠN '+need)+T(-104,65,7,'#ffe066','XONG '+done);
+ s+=RR(-142,86,76,14,3,'#3b2a20',K(.6))+T(-104,96,7.5,'#f2c14e','PHÒNG CHỜ')+plantBig(-176,FLOOR_Y)+sconce(-40,30);
+ return s+R(-8,0,8,FLOOR_Y,'#8a5a3a')+R(-7,0,2,FLOOR_Y,'#a87250')}
+// Vách ngăn phòng chờ với văn phòng, chừa lối đi ở các lối ngang
+function partition(gaps,H){let s='',a=FLOOR_Y;
+ gaps.slice().sort((p,q)=>p-q).forEach(g=>{if(g-22>a)s+=RR(-7,a,6,g-22-a,2,'#a8794c',K(.8));a=Math.max(a,g+6)});
+ return s+(H>a?RR(-7,a,6,H-a,2,'#a8794c',K(.8)):'')}
+function fish(x,y,c){return P('M'+(x-4)+' '+y+' l-4 -3 l0 6z',c,K(.5))+E(x,y,4.5,2.6,c,K(.5))+C(x+2,y-.6,.6,OL)}
+function aquarium(x,b){return RR(x,b-20,76,20,2,'#8a5634',K(1))+R(x+3,b-13,70,1,'#6e4228')
+ +RR(x+2,b-62,72,42,3,'#bfe7f7',K(1))+R(x+4,b-58,68,36,'#6fc3e6')+R(x+4,b-28,68,6,'#e8d29a')
+ +LN('M'+(x+12)+' '+(b-23)+' q-3 -6 0 -12 q3 -6 0 -12','#3f8f4a',1.6)+LN('M'+(x+62)+' '+(b-23)+' q3 -5 0 -10 q-3 -5 0 -9','#4fa35a',1.6)
+ +RR(x+40,b-28,10,6,2,'#9aa3b5',K(.5))
+ +'<g class="fish">'+fish(x+22,b-44,'#f28c28')+'</g><g class="fish f2">'+fish(x+20,b-34,'#f2c14e')+'</g>'
+ +'<g class="bubl">'+C(x+58,b-30,1.2,'#ffffff')+C(x+60,b-36,1,'#ffffff')+C(x+57,b-42,.8,'#ffffff')+'</g>'+R(x,b-64,76,4,'#3b3b3b')}
+function arcade(x,b){return RR(x,b-62,32,62,3,'#6a3fa0',K(1))+RR(x+3,b-60,26,8,1.5,'#f2c14e')+T(x+16,b-54,5.5,'#6a3fa0','GAME')
+ +RR(x+4,b-49,24,18,2,'#15142a',K(.6))+R(x+9,b-45,3,2,'#7de0a0')+R(x+15,b-45,3,2,'#7de0a0')+R(x+21,b-45,3,2,'#7de0a0')+R(x+12,b-42,8,2,'#7de0a0')
+ +'<g class="blink">'+R(x+15,b-36,2,3,'#ffe066')+'</g>'+R(x+2,b-30,28,8,'#5a2f8a')+LN('M'+(x+10)+' '+(b-26)+' l0 -4','#2b2b2b',1)+C(x+10,b-30,1.8,'#e05555',K(.4))
+ +C(x+20,b-26,1.4,'#3f7ee0')+C(x+25,b-26,1.4,'#f2c14e')+RR(x+8,b-17,16,9,1,'#2d1f45')+R(x+15,b-14,2,4,'#f2c14e')}
+function foosball(x,b){let s=RR(x+4,b-14,4,14,1,'#5e3820')+RR(x+64,b-14,4,14,1,'#5e3820')+RR(x,b-32,72,20,3,'#8a5634',K(1))+RR(x+4,b-29,64,14,2,'#4fa35a')
+  +LN('M'+(x+36)+' '+(b-29)+' l0 14','#e9f5e3',.8)+C(x+36,b-22,3,'none',' stroke="#e9f5e3" stroke-width=".8"')+C(x+30,b-20,1.4,'#ffffff');
+ [14,26,46,58].forEach((dx,i)=>s+=LN('M'+(x+dx)+' '+(b-35)+' l0 26','#c9cdd6',1)+RR(x+dx-2,b-25+(i%2)*3,4,5,1,i<2?'#e05555':'#3f7ee0',K(.4)));
+ return s}
+function vending(x,b){let s=RR(x,b-52,40,52,3,'#c94040',K(1))+RR(x+5,b-47,22,34,1.5,'#1f2a45');
+ for(let r=0;r<3;r++)for(let c=0;c<3;c++)s+=RR(x+8+c*6.5,b-44+r*11,4.5,8,1.5,['#f2c14e','#4fa35a','#3f7ee0'][(r+c)%3]);
+ return s+RR(x+30,b-44,6,14,1,'#e9e3d8',K(.4))+RR(x+7,b-10,18,5,1,'#2b1d16')}
+function dogBed(x,b){return E(x,b+3,17,6,'#8a5a3a',K(.9))+E(x,b+2,13,3.8,'#ecd8b6')+RR(x+19,b+2,8,2,1,'#fbfbf7',K(.4))+C(x+19,b+2,1.5,'#fbfbf7',K(.4))+C(x+27,b+2,1.5,'#fbfbf7',K(.4))
+ +E(x-26,b+2,6,2.4,'#3f7ee0',K(.6))+E(x-26,b+1,4,1.2,'#c98d52')}
+// Góc giải trí dưới phòng chờ, từ lối d0 tới lối dưới cùng laneB
+function playCorner(d0,laneB){let s=aquarium(-182,d0+66)+arcade(-92,d0+66)+foosball(-182,d0+132)+vending(-96,d0+132)+dogBed(BED_X,laneB-4)+plantBig(-44,laneB-8);
+ for(let y=d0+200,i=0;y<=laneB-56;y+=66,i++)s+=i%2?bookshelf(-182,y-56,48,56):plantBig(-160,y);
+ return s}
 function bunting(x0,x1,y,sag){const c=['#e05555','#f2c14e','#4fa35a','#3f7ee0','#9a5fd6'];
  let s=LN('M'+x0+' '+y+' Q'+(x0+x1)/2+' '+(y+sag*2)+' '+x1+' '+y,'#7a3d20',.8);const n=Math.floor((x1-x0)/13);
  for(let i=1;i<n;i++){const t=i/n,x=x0+(x1-x0)*t,yy=y+4*sag*t*(1-t);s+=P('M'+(x-4)+' '+yy+' l8 0 l-4 8z',c[i%c.length],K(.5))}return s}
@@ -524,14 +577,14 @@ function gapDeco(kind,x,b){
  if(kind===2)return P('M'+(x-5)+' '+(b-11)+' l10 0 l-1.5 11 l-7 0z','#6c7488',K(.8))+C(x-1,b-12,2,'#fbfbf7',K(.4))+C(x+2,b-11.5,1.6,'#fbfbf7',K(.4));
  return ''}
 // Góc nghỉ dưới cùng: thảm, đèn cây, sofa, ổ chó, ghế lười, kệ sách, máy in, máy bán nước. b: chân đồ vật
-function lounge(b){let s=E(112,b-2,72,9,'#7b9ac9',' fill-opacity=".55" stroke="#5a78a8" stroke-width="1.5"')+E(112,b-2,60,6,'none',' stroke="#e7eefc" stroke-opacity=".6" stroke-dasharray="4 3"');
+function lounge(b,bed){let s=E(112,b-2,72,9,'#7b9ac9',' fill-opacity=".55" stroke="#5a78a8" stroke-width="1.5"')+E(112,b-2,60,6,'none',' stroke="#e7eefc" stroke-opacity=".6" stroke-dasharray="4 3"');
  s+=LN('M22 '+b+' l0 -42','#3b3b3b',1.6)+E(22,b,6,1.6,'#3b3b3b')+P('M14 '+(b-40)+' l16 0 l-4 -10 l-8 0z','#ffe9b0',K(.8));
  const x=50;
  s+=RR(x,b-36,96,24,7,'#5b7fbf',K(1))+R(x+48,b-34,1,20,'#4f6fa8')+RR(x+4,b-17,88,12,3,'#6f93d3',K(1))+R(x+48,b-17,1,12,'#4f6fa8')
   +RR(x-5,b-25,13,22,5,'#5b7fbf',K(1))+RR(x+88,b-25,13,22,5,'#5b7fbf',K(1))+RR(x+12,b-31,18,13,4,'#f2c14e',K(.8)+ROT(-8,x+21,b-24))+RR(x+66,b-31,18,13,4,'#e07a6a',K(.8)+ROT(8,x+75,b-24))
   +RR(x+2,b-4,4,4,1,'#5e3820')+RR(x+90,b-4,4,4,1,'#5e3820');
  s+=RR(156,b-14,14,14,1.5,'#b9824e',K(.8))+E(163,b-15,7,1.5,'#d9a46c',K(.6))+RR(160,b-21,6,6,1.5,'#ffffff',K(.5));
- s+=E(BED_X,b+3,17,6,'#8a5a3a',K(.9))+E(BED_X,b+2,13,3.8,'#ecd8b6')+RR(BED_X+19,b+2,8,2,1,'#fbfbf7',K(.4))+C(BED_X+19,b+2,1.5,'#fbfbf7',K(.4))+C(BED_X+27,b+2,1.5,'#fbfbf7',K(.4));
+ if(bed)s+=dogBed(BED_X,b);
  s+=plantBig(246,b);
  s+=E(290,b-8,14,9,'#e07a1f',K(1))+E(285,b-11,5,3,'rgba(255,255,255,.25)');
  s+=RR(322,b-30,70,30,2,'#8a5634',K(1))+R(325,b-27,64,24,'#5a3420')+R(325,b-16,64,2,'#a06a42');
@@ -590,10 +643,14 @@ function sitBack(cx,y,L,role,color,pose){
 function hairCap(cx,y){return 'M'+(cx-7.7)+' '+(y+7.5)+' C'+(cx-8.6)+' '+(y-4.6)+' '+(cx+8.6)+' '+(y-4.6)+' '+(cx+7.7)+' '+(y+7.5)
  +' Q'+(cx+5)+' '+(y+2.4)+' '+(cx+1)+' '+(y+3.3)+' Q'+(cx-4)+' '+(y+2.6)+' '+(cx-7.7)+' '+(y+7.5)+'Z'}
 // Người đứng nhìn thẳng. hold: cup (cốc nước), paper (giơ tờ giấy), lens (kính lúp) hoặc rỗng
-function standFront(cx,y,L,role,color,hold){
+// seated: ngồi trên sofa ở phòng chờ (đầu gối nhô ra, chân ngắn lại); hold thêm book (sách trên đùi),
+// phone (giơ điện thoại), nap (ngủ gật, nhắm mắt)
+function standFront(cx,y,L,role,color,hold,seated){
  const o=outfit(role,color);let s='';
  if(L.style==='long')s+=RR(cx-8.6,y+1,17.2,17,6,L.hair,K(.9));
- const leg=(x,cls)=>'<g class="'+cls+'">'+RR(x,y+24,5.5,12,2,L.pants,K(.9))+E(x+2.75,y+36.4,3.7,1.9,'#2b2118')+'</g>';
+ const leg=seated
+  ?(x,cls)=>'<g class="'+cls+'">'+RR(x,y+26,5.5,9,2,L.pants,K(.9))+E(x+2.75,y+26.5,3.3,2.6,L.pants,K(.8))+E(x+2.75,y+35.4,3.5,1.8,'#2b2118')+'</g>'
+  :(x,cls)=>'<g class="'+cls+'">'+RR(x,y+24,5.5,12,2,L.pants,K(.9))+E(x+2.75,y+36.4,3.7,1.9,'#2b2118')+'</g>';
  s+=leg(cx-6,'legL')+leg(cx+.5,'legR');
  s+=RR(cx-12.5,y+14,5,12,2.5,o.shirt,K(.9))+C(cx-10,y+26,2.2,L.skin,K(.7));
  s+=RR(cx-9.5,y+12,19,15,6,o.shirt,K(1))+RR(cx-9.5,y+12,19,15,6,'url(#shd)');
@@ -602,11 +659,16 @@ function standFront(cx,y,L,role,color,hold){
  else if(role==='master'||role==='boss')s+=P('M'+(cx-3.8)+' '+(y+12.5)+' l3.8 4 l3.8 -4z','#ffffff',K(.6))+P('M'+cx+' '+(y+15.6)+' l-1.7 2 l1.7 7.4 l1.7 -7.4z','#d64545',K(.5));
  else s+=E(cx,y+13.6,6.2,2.3,o.dark,K(.6))+LN('M'+(cx-2.4)+' '+(y+15.2)+' l0 4','#f4efe6',.9)+LN('M'+(cx+2.4)+' '+(y+15.2)+' l0 4','#f4efe6',.9)+RR(cx-5,y+20,10,5,2,'rgba(0,0,0,.14)');
  s+=RR(cx-2.5,y+10,5,4,1.5,L.skin)+hairExtra(cx,y,L)+C(cx,y+6.5,7.4,L.skin,K(1))+P(hairCap(cx,y),L.hair,K(.9))+E(cx-3,y+1.5,2.6,1.2,'rgba(255,255,255,.25)');
- s+='<g class="eyes">'+E(cx-2.8,y+7.6,1.05,1.4,'#2b2b2b')+E(cx+2.8,y+7.6,1.05,1.4,'#2b2b2b')+C(cx-2.5,y+7.1,.4,'#fff')+C(cx+3.1,y+7.1,.4,'#fff')+'</g>'
+ const dy=hold==='book'||hold==='phone'?.7:0; // nhìn xuống sách, điện thoại
+ s+=(hold==='nap'?LN('M'+(cx-4)+' '+(y+7.6)+' q1.2 1 2.4 0 M'+(cx+1.6)+' '+(y+7.6)+' q1.2 1 2.4 0','#2b2b2b',.8)
+  :'<g class="eyes">'+E(cx-2.8,y+7.6+dy,1.05,1.4,'#2b2b2b')+E(cx+2.8,y+7.6+dy,1.05,1.4,'#2b2b2b')+C(cx-2.5,y+7.1+dy,.4,'#fff')+C(cx+3.1,y+7.1+dy,.4,'#fff')+'</g>')
   +E(cx-4.7,y+9.9,1.5,.8,'#f19a9a',' opacity=".75"')+E(cx+4.7,y+9.9,1.5,.8,'#f19a9a',' opacity=".75"')+LN('M'+(cx-1.4)+' '+(y+10.4)+' q1.4 1.3 2.8 0','#7a3b2a',.8);
  if(role==='master')s+=headset(cx,y,true);
  if(hold==='paper')s+='<g class="wave">'+RR(cx+7.5,y+3,5,13,2.5,o.shirt,K(.9))+RR(cx+6,y-10,14,12,1.2,'#ffffff',K(.8))
   +LN('M'+(cx+8.5)+' '+(y-7)+' l8 0 M'+(cx+8.5)+' '+(y-4.5)+' l8 0 M'+(cx+8.5)+' '+(y-2)+' l5 0','#9aa3b5',.8)+LN('M'+(cx+8.5)+' '+(y+.5)+' l6 0','#d64545',.8)+C(cx+10,y+3,2.3,L.skin,K(.7))+'</g>';
+ else if(hold==='phone')s+=RR(cx+6.5,y+13,5,9,2.5,o.shirt,K(.9))+RR(cx+3.5,y+12,5,8,1.2,'#2d2d3a',K(.6))+R(cx+4.3,y+13,3.4,5.6,'#8fd3f4')+C(cx+7.5,y+19.5,2.2,L.skin,K(.7));
+ else if(hold==='book')s+=RR(cx+7.5,y+14,5,12,2.5,o.shirt,K(.9))+'<g'+ROT(-8,cx+4,y+25)+'>'+RR(cx-3,y+21,14,9,1.2,'#c94040',K(.7))+R(cx-2,y+21.8,5.8,7,'#fbfbf4')+R(cx+4.2,y+21.8,5.8,7,'#fbfbf4')
+  +LN('M'+(cx-.8)+' '+(y+24)+' l4 0 M'+(cx-.8)+' '+(y+26)+' l3.5 0 M'+(cx+5.4)+' '+(y+24)+' l4 0','#b9b0a3',.6)+'</g>'+C(cx+10,y+26,2.2,L.skin,K(.7));
  else s+='<g class="'+(hold==='cup'?'sip':'')+'">'+RR(cx+7.5,y+14,5,12,2.5,o.shirt,K(.9))
   +(hold==='cup'?RR(cx+9,y+20,6.5,7.5,1.3,'#ffffff',K(.7))+R(cx+9.8,y+20.8,4.9,2,'#bfe3f5'):'')
   +(hold==='lens'?LN('M'+(cx+10)+' '+(y+26)+' l4 -5','#7a4a22',1.8)+C(cx+15.5,y+18,4,'#bfe3f5',K(.8))+C(cx+14.4,y+16.9,1,'#fff'):'')
@@ -696,10 +758,22 @@ function stateOf(a,dir){
 /* ---------- dựng cảnh ---------- */
 const CW=0.6; // độ rộng một ký tự monospace so với cỡ chữ
 const cut=(t,n)=>t.length>n?t.slice(0,Math.max(1,n-1))+'…':t;
-// Khung rộng W. Tường cao tới FLOOR_Y. Các dãy bàn từ LX tới BR, cách nhau GAP (lối đi cho thú cưng).
+// Toạ độ văn phòng bắt đầu từ x=0, rộng OW. Tường cao tới FLOOR_Y. Các dãy bàn từ LX tới BR, cách nhau GAP (lối đi cho thú cưng).
 // Lối đi thảm đỏ từ AX, rộng AW, chính giữa là bàn của bạn. TOP: dãy bàn đầu tiên. Dưới cùng là góc nghỉ.
-const W=720, FLOOR_Y=118, LX=24, BR=640, AX=652, AW=48, OWNER_X=AX+AW/2, COL0=LX+124, STEP=98, PER_ROW=5, ROW_H=130, HEAD=30, TOP=192, GAP=24;
-const BED_X=200, HOLE_X=284;
+// Màn hình rộng (WIDE): thêm cột phòng chờ và góc giải trí rộng LW ở bên trái, toạ độ âm (từ -LW tới 0).
+// Khung nhìn (viewBox) từ VX, rộng VW; khung càng rộng thì mỗi hàng càng nhiều bàn, nhân vật giữ gần đúng cỡ.
+const FLOOR_Y=118, LX=24, AW=48, STEP=98, ROW_H=130, HEAD=30, TOP=192, GAP=24, LW=192, HOLE_X=284;
+const PX_PER_UNIT=1.6, MIN_WIDE_PX=1.3; // cỡ hiển thị mong muốn, và cỡ nhỏ nhất vẫn chịu hiện cột trái
+let WIDE=false, VX=0, VW=720, OW=720, AX=652, BR=640, OWNER_X=676, PER_ROW=5, BED_X=200;
+function layout(){
+ const sc=$('.scene'),cw=Math.max(320,(sc&&sc.clientWidth||1212)-12);
+ WIDE=cw/(LW+720)>=MIN_WIDE_PX;
+ VX=WIDE?-LW:0;
+ VW=Math.max(WIDE?LW+720:720,Math.round(cw/PX_PER_UNIT/4)*4);
+ OW=VW+VX;AX=OW-68;BR=AX-12;OWNER_X=AX+AW/2;XR=OWNER_X;
+ PER_ROW=Math.max(5,Math.floor((BR-LX-126)/STEP)); // một dãy đủ PER_ROW bàn rộng 126+PER_ROW*STEP, vừa khít BR-LX
+ BED_X=WIDE?-LW+60:200;
+}
 const NIGHT=!!(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);
 const MOTION_OK=!window.matchMedia||!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 // Nhớ chỗ của từng agent ở lần vẽ trước: đổi chỗ (cây nước ↔ bàn) thì cho đi bộ; tính năng vừa xong thì bắn pháo giấy
@@ -739,6 +813,7 @@ function station(f,id,a,x,w,top,isMaster,color){
 }
 
 function build(){
+ layout();
  const byId=Object.fromEntries(S.agents.map(a=>[a.id,a]));
  const now=Date.now();
  // tính năng vừa chuyển sang "xong" ở lần làm mới này: pháo giấy 6 giây
@@ -748,8 +823,8 @@ function build(){
  const blocks=S.features.map((f,i)=>[f,i]).filter(([f])=>f.status!=='done'&&f.status!=='delivered').map(([f,i])=>{
   const ms=f.members.filter(m=>m===f.master);
   const others=f.members.filter(m=>m!==f.master).sort((a,b)=>{const ra=(byId[a]||{}).role||'',rb=(byId[b]||{}).role||'';return ra===rb?a.localeCompare(b):(ra==='coder'?-1:rb==='coder'?1:ra.localeCompare(rb))});
-  const rows=Math.max(1,Math.ceil(others.length/PER_ROW));
-  return{f,color:COLORS[i%COLORS.length],master:ms[0]||f.master||'',others,rows,h:HEAD+rows*ROW_H+6};
+  const rows=Math.max(1,Math.ceil(others.length/PER_ROW)),cols=Math.max(1,Math.min(PER_ROW,others.length));
+  return{f,color:COLORS[i%COLORS.length],master:ms[0]||f.master||'',others,rows,w:126+cols*STEP,h:HEAD+rows*ROW_H+6};
  });
  const busy=new Set(blocks.flatMap(b=>[b.master,...b.others]));
  const free=S.agents.filter(a=>!busy.has(a.id));
@@ -757,22 +832,30 @@ function build(){
  // agent đổi khu (cây nước ↔ bàn) so với lần vẽ trước: ghi mốc để ẩn ở chỗ mới tới khi người đi bộ tới nơi
  if(MOTION_OK)S.agents.forEach(a=>{const q=PREV_PLACE.get(a.id),z=busy.has(a.id)?'desk':'cooler';if(q&&q.zone!==z)ARRIVE.set(a.id,now)});
  // vị trí các dãy bàn, các lối đi ngang (cho thú cưng) và góc nghỉ dưới cùng
- const tops=[],lanes=[q4(TOP-12)];let y=TOP;
- blocks.forEach(b=>{tops.push(y);lanes.push(q4(y+b.h+GAP/2));y+=b.h+GAP});
+ // dãy bàn rộng vừa đủ số bàn; các dãy nhỏ xếp cạnh nhau trên một tầng nếu đủ chỗ (màn rộng thì nhiều dãy một tầng)
+ const lanes=[q4(TOP-12)];let y=TOP,shelf=null;const shelves=[];
+ blocks.forEach(b=>{if(!shelf||shelf.x+b.w>BR){shelf={x:LX,h:0,items:[]};shelves.push(shelf)}b.x=shelf.x;shelf.x+=b.w+16;shelf.items.push(b);shelf.h=Math.max(shelf.h,b.h)});
+ shelves.forEach(sh=>{sh.items.forEach(b=>{b.y=y;b.hh=sh.h});lanes.push(q4(y+sh.h+GAP/2));y+=sh.h+GAP});
  if(!blocks.length)lanes.push(q4(TOP+80));
- const laneL=lanes[lanes.length-1],laneB=laneL+60,H=laneB+14;
+ const laneL=lanes[lanes.length-1];
+ // phòng chờ (màn rộng): mỗi hàng 4 chỗ (sofa 3 chỗ, ghế bành 1 chỗ), 2–3 hàng; góc giải trí bên dưới, từ lối d0.
+ // Khung cao bằng phần cao hơn giữa văn phòng và cột trái; lối laneB dưới cùng chạy suốt bề ngang
+ const RROWS=WIDE?Math.min(3,Math.max(2,Math.ceil(free.length/4))):0,CAP=WIDE?RROWS*4:5,d0=WIDE?q4(140+(RROWS-1)*104+86):0;
+ const H=WIDE?Math.max(laneL+74,d0+204):laneL+74,laneB=H-14;
  const need=S.owner.length+(S.masters||[]).filter(m=>m.waitOwner).length;
  const watch=(S.watch||{state:'never'}).state;
  // chỗ của từng agent ở lần vẽ này: để so với lần trước và cho đi bộ
  const place=new Map();
  // ---- tường, sàn, đồ trang trí
- let s=defs()+wall()+R(0,FLOOR_Y,W,H-FLOOR_Y,'url(#fl)')+R(0,FLOOR_Y,W,5,'rgba(60,30,10,.12)');
+ let s=defs()+wall()+R(VX,FLOOR_Y,VW,H-FLOOR_Y,'url(#fl)')+(WIDE?R(-LW,FLOOR_Y,LW,H-FLOOR_Y,'url(#lf)'):'')+R(VX,FLOOR_Y,VW,5,'rgba(60,30,10,.12)');
  if(need)s+=P('M298 118 l50 0 l16 28 l-82 0z','rgba(255,214,140,.25)');
- s+=aisle(AX,FLOOR_Y,AW,H-FLOOR_Y)+bunting(64,290,11,4)+bunting(514,646,11,3);
+ s+=aisle(AX,FLOOR_Y,AW,H-FLOOR_Y)+bunting(64,290,11,4)+bunting(514,AX-6,11,3);
  s+=bookshelf(10,28,48,84)+cooler(66)+pantry(102)+sconce(134,30)+windowPane(152,18,80,46)+clock(266,40,watch==='running')+door(298,need>0)
-  +P('M'+(HOLE_X-5)+' 117.5 l0 -4 q5 -7 10 0 l0 4z','#2b1d16')+whiteboard()+calendar(520,20)+poster(560,16)+sconce(604,30)+plantBig(616,FLOOR_Y);
- s+=lounge(laneB-4);
- if(NIGHT)s+=R(0,0,W,H,'rgba(20,30,70,.18)')+E(134,34,26,20,'url(#glow)')+E(604,34,26,20,'url(#glow)')+E(22,laneB-52,30,26,'url(#glow)');
+  +P('M'+(HOLE_X-5)+' 117.5 l0 -4 q5 -7 10 0 l0 4z','#2b1d16')+whiteboard()+calendar(520,20)+poster(560,16)+fillWall(600,AX-60)+sconce(AX-48,30)+plantBig(AX-36,FLOOR_Y);
+ s+=lounge(laneB-4,!WIDE);
+ if(WIDE)s+=loungeWall(S.agents.filter(a=>a.running).length,need,done.length)+partition(lanes.concat(laneB),H)
+  +RR(-186,128,172,RROWS*104-10,10,'#c96f5a',' fill-opacity=".18" stroke="#c96f5a" stroke-opacity=".5" stroke-width="1.5"')+playCorner(d0,laneB);
+ if(NIGHT)s+=R(VX,0,VW,H,'rgba(20,30,70,.18)')+E(134,34,26,20,'url(#glow)')+E(AX-48,34,26,20,'url(#glow)')+E(22,laneB-52,30,26,'url(#glow)')+(WIDE?E(-40,34,26,20,'url(#glow)')+E(-104,49,56,36,'url(#glow)'):'');
  if(need)s+=bubble(323,6,'!'+need,'bad');
  // ---- bảng trắng: các tính năng đang làm, rồi các tính năng đã xong
  s+=T(436,26,8.5,'#3b2a20','CÁC TÍNH NĂNG');
@@ -782,8 +865,18 @@ function build(){
  if(board.length>4)s+=T(502,99,6.5,'#6b5c4e','+'+(board.length-4)+' nữa','end');
  if(!board.length)s+=T(436,60,7.5,'#6b5c4e','(chưa có)');
  PARTY.forEach(p=>{s+=confetti(436,14,now-p.at)+T(436,124,8.5,'#b23030','🎉 '+p.id+' xong!')});
- // ---- cây nước: agent rảnh đứng uống nước; biển tên so le hai hàng để không đè nhau
- free.slice(0,5).forEach((a,k)=>{const cx=162+k*28,y=80,st=stateOf(a,'');
+ // ---- phòng chờ (màn rộng): agent rảnh ngồi sofa, mỗi người một việc (uống nước, đọc sách, xem điện thoại, ngủ gật);
+ // có việc chờ thì không ngủ. Biển tên so le hai hàng để không đè nhau
+ if(WIDE)for(let r=0;r<RROWS;r++){const y=140+r*104,SX=[-162,-130,-98,-56];
+  s+=sofaBack(-178,y,96,'#c8775a')+sofaBack(-72,y,32,'#5b7fbf');
+  free.slice(r*4,r*4+4).forEach((a,j)=>{const k=r*4+j,cx=SX[j],st=stateOf(a,'');
+   let act=['cup','book','phone','nap'][hashN(a.id)%4];if(act==='nap'&&st.kind!=='idle')act='phone';
+   place.set(a.id,{x:cx,y,zone:'cooler'});
+   s+=agG(a.id,st.label,selBox(cx-14,y-21,28,80)+standFront(cx,y,look(a.id),a.role,'#8f9bb0',act,true).replace('class="sip"','class="sip" style="animation-delay:-'+(k*0.9)+'s"')
+    +bubble(cx,y-18,act==='nap'&&st.txt==='z'?'zz':st.txt,st.kind)+label(cx,y+40+(j%2)*18,a.id,shortOf(a,st,false),st.kind,56))});
+  s+=sofaArms(-178,y,96,'#c8775a')+sofaArms(-72,y,32,'#5b7fbf')}
+ // ---- cây nước (màn hẹp): agent rảnh đứng uống nước
+ if(!WIDE)free.slice(0,5).forEach((a,k)=>{const cx=162+k*28,y=80,st=stateOf(a,'');
   place.set(a.id,{x:cx,y,zone:'cooler'});
   s+=agG(a.id,st.label,selBox(cx-13,y-22,26,66)+standFront(cx,y,look(a.id),a.role,'#8f9bb0','cup').replace('class="sip"','class="sip" style="animation-delay:-'+(k*0.9)+'s"')
    +bubble(cx,y-18,st.txt,st.kind)+label(cx,y+40+(k%2)*20,a.id,shortOf(a,st,false),st.kind,62))});
@@ -796,24 +889,24 @@ function build(){
   o+=RR(cx-15,100,30,11,2,'#3b2a20',K(.6))+T(cx,108.5,8,'#f2c14e','BẠN')+(away?'':bubble(cx,28,need?'!'+need:'z',need?'bad':'idle'));
   s+='<g id="owner" tabindex="0" role="button" aria-label="'+esc(need?'Bàn của bạn: '+need+' việc chờ bạn':'Bàn của bạn: không có việc chờ')+'" style="cursor:pointer"><title>'+(need?need+' việc chờ bạn: bấm để xem':'Không có việc chờ bạn')+'</title>'+o+'</g>'}
  // ---- các dãy bàn
- blocks.forEach((b,bi)=>{
-  const f=b.f,y=tops[bi];
-  s+=rugBlock(LX,y,BR-LX,b.h,b.color);
-  const sv=stOf(f),svw=sv.length*CW*7.5+12,lbl=cut(f.id+' · '+f.title,Math.floor((BR-LX-22-svw)/(CW*8.5))),lw=lbl.length*CW*8.5;
-  s+=RR(LX+4,y+6,Math.min(lw+svw+24,BR-LX-12),18,4,b.color)+T(LX+10,y+18.5,8.5,'#ffffff',lbl,'start')
-   +'<rect x="'+(LX+16+lw)+'" y="'+(y+9)+'" width="'+svw+'" height="12" rx="3" fill="'+(f.to==='owner'?'#ffe066':'rgba(255,255,255,.88)')+'"/>'+T(LX+16+lw+svw/2,y+17.8,7.5,f.to==='owner'?'#7a2a00':'#3b2a20',sv)
-   +(LANE_NOTE[f.lane]&&LX+28+lw+svw+LANE_NOTE[f.lane].length*CW*7<BR-8?T(LX+24+lw+svw,y+18,7,'#3b2a20',LANE_NOTE[f.lane],'start'):'');
+ blocks.forEach(b=>{
+  const f=b.f,y=b.y,X=b.x,R2=b.x+b.w,C0=X+124;
+  s+=rugBlock(X,y,b.w,b.hh,b.color);
+  const sv=stOf(f),svw=sv.length*CW*7.5+12,lbl=cut(f.id+' · '+f.title,Math.floor((b.w-22-svw)/(CW*8.5))),lw=lbl.length*CW*8.5;
+  s+=RR(X+4,y+6,Math.min(lw+svw+24,b.w-12),18,4,b.color)+T(X+10,y+18.5,8.5,'#ffffff',lbl,'start')
+   +'<rect x="'+(X+16+lw)+'" y="'+(y+9)+'" width="'+svw+'" height="12" rx="3" fill="'+(f.to==='owner'?'#ffe066':'rgba(255,255,255,.88)')+'"/>'+T(X+16+lw+svw/2,y+17.8,7.5,f.to==='owner'?'#7a2a00':'#3b2a20',sv)
+   +(LANE_NOTE[f.lane]&&X+28+lw+svw+LANE_NOTE[f.lane].length*CW*7<R2-8?T(X+24+lw+svw,y+18,7,'#3b2a20',LANE_NOTE[f.lane],'start'):'');
   const rowTop=r=>y+HEAD+r*ROW_H;
   // đồ giữa các bàn (cây, tủ hồ sơ, thùng rác) và cây ở cuối dãy
   for(let r=0;r<b.rows;r++){const n=Math.min(PER_ROW,b.others.length-r*PER_ROW);
-   for(let c=0;c<n;c++){const gx=COL0+c*STEP+72+13;if(c===n-1&&gx>BR-14)break;
-    s+=gapDeco(c===n-1?0:hashN(f.dir+r+'/'+c)%4,c===n-1?Math.min(gx+12,BR-18):gx,rowTop(r)+80)}}
+   for(let c=0;c<n;c++){const gx=C0+c*STEP+72+13;if(c===n-1&&gx>R2-14)break;
+    s+=gapDeco(c===n-1?0:hashN(f.dir+r+'/'+c)%4,c===n-1?Math.min(gx+12,R2-18):gx,rowTop(r)+80)}}
   const seat=(id,x,w,top,isM)=>{
    if(!place.has(id))place.set(id,{x:x+w/2,y:top+48,zone:'desk'});
    s+=station(f,id,byId[id],x,w,top,isM,b.color);
   };
-  if(b.master)seat(b.master,LX+8,100,rowTop(0),true);
-  b.others.forEach((id,k)=>{const r=Math.floor(k/PER_ROW),c=k%PER_ROW;seat(id,COL0+c*STEP,72,rowTop(r),false)});
+  if(b.master)seat(b.master,X+8,100,rowTop(0),true);
+  b.others.forEach((id,k)=>{const r=Math.floor(k/PER_ROW),c=k%PER_ROW;seat(id,C0+c*STEP,72,rowTop(r),false)});
  });
  if(!blocks.length)s+=T((LX+BR)/2,TOP+44,9,'#3b2a20',done.length?'Không có tính năng nào đang làm':'Chưa có tính năng nào (workflow/F-*)');
  // ---- người đi bộ: agent vừa đổi chỗ (cây nước → bàn, bàn → cây nước). Vẽ ở lớp riêng #walk,
@@ -825,23 +918,26 @@ function build(){
  PREV_PLACE.clear();place.forEach((p,id)=>PREV_PLACE.set(id,p));
  ARRIVE.forEach((t,id)=>{if(now-t>WALK_MS+100)ARRIVE.delete(id)});
  // ---- watch.sh chết: tắt đèn
- if(watch==='dead')s+=R(0,0,W,H,'rgba(10,10,30,.38)')+'<g class="bub bob">'+'<rect x="219" y="62" width="94" height="16" rx="4" fill="#ffe6e3" stroke="'+OL+'" stroke-width="1.5"/>'+T(266,74,8.5,'#b23030','watch.sh đã dừng')+'</g>';
- const svg=$('#office');svg.setAttribute('viewBox','0 0 '+W+' '+H);svg.innerHTML=s;
- const wk=$('#walk');wk.setAttribute('viewBox','0 0 '+W+' '+H);
- $('#pets').setAttribute('viewBox','0 0 '+W+' '+H);
+ if(watch==='dead')s+=R(VX,0,VW,H,'rgba(10,10,30,.38)')+'<g class="bub bob">'+'<rect x="219" y="62" width="94" height="16" rx="4" fill="#ffe6e3" stroke="'+OL+'" stroke-width="1.5"/>'+T(266,74,8.5,'#b23030','watch.sh đã dừng')+'</g>';
+ const vb=VX+' 0 '+VW+' '+H,svg=$('#office');svg.setAttribute('viewBox',vb);svg.innerHTML=s;
+ const wk=$('#walk');wk.setAttribute('viewBox',vb);
+ $('#pets').setAttribute('viewBox',vb);
  walkers.forEach(w=>{const g=document.createElementNS('http://www.w3.org/2000/svg','g');g.setAttribute('class','walker');g.innerHTML=w.svg;wk.appendChild(g);
   const an=g.animate([{transform:'translate('+w.x0+'px,'+w.y0+'px)'},{transform:'translate('+w.x1+'px,'+w.y1+'px)'}],{duration:WALK_MS,easing:'ease-in-out',fill:'forwards'});
   an.onfinish=()=>g.remove();setTimeout(()=>g.remove(),WALK_MS+800)}); // dự phòng: tab chạy nền thì hoạt hình có thể dừng
- // ---- lối đi cho chó, mèo, chuột: dải sàn sát chân tường, lối giữa các dãy bàn, hai lối dọc hai bên, lối trước góc nghỉ
- const segs=[[XL,BASE_Y,XR,BASE_Y],[XL,BASE_Y,XL,laneB],[XR,BASE_Y,XR,laneL],[XL,laneB,632,laneB]].concat(lanes.map(v=>[XL,v,XR,v]));
- const sig=JSON.stringify(segs);if(sig!==GSIG){GSIG=sig;setGraph(makeGraph(segs),laneB)}
+ // ---- lối đi cho chó, mèo, chuột: dải sàn sát chân tường, lối giữa các dãy bàn, hai lối dọc hai bên, lối trước góc nghỉ.
+ // Màn rộng: các lối ngang đi xuyên vách sang phòng chờ, thêm lối dọc trong phòng chờ và lối quanh góc giải trí
+ const segs=[[XL,BASE_Y,XR,BASE_Y],[XL,BASE_Y,XL,laneB],[XR,BASE_Y,XR,laneL]].concat(WIDE
+  ?lanes.map(v=>[LV,v,XR,v]).concat([[LV,lanes[0],LV,laneB],[LL,d0,LV,d0],[LL,d0,LL,laneB],[LL,laneB,AX-20,laneB]])
+  :lanes.map(v=>[XL,v,XR,v]).concat([[XL,laneB,AX-20,laneB]]));
+ const sig=JSON.stringify(segs);if(sig!==GSIG){GSIG=sig;setGraph(makeGraph(segs),BED_X+','+laneB)}
  svg.querySelectorAll('.ag').forEach(g=>{const go=()=>{openId=g.dataset.id;build();showDetail()};g.addEventListener('click',go);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}})});
  const ow=svg.querySelector('#owner'),toNeed=()=>$('#needBox').scrollIntoView({behavior:MOTION_OK?'smooth':'auto',block:'start'});
  ow.addEventListener('click',toNeed);ow.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toNeed()}});
  const lg=$('#legend');lg.replaceChildren();
  lg.append(el('span',null,'Màn hình chạy code, tay gõ phím = đang làm · gõ ngón tay = có việc chờ (số trên bong bóng) · giơ tay "?" = đang chờ Master trả lời · bọ đỏ trên bàn = có lỗi Tester báo · Master đứng dậy quay lại giơ giấy "!" = chờ bạn · gật gù "z" = rảnh · bóng mờ "?" = ID chưa khai trong agents.txt'),
   el('span',null,'Cửa mở = có việc chờ bạn · đồng hồ đứng, đèn tắt = watch.sh không chạy · rê chuột vào ai để xem chi tiết, bấm để mở · bấm bàn "BẠN" để tới mục Cần bạn · thỉnh thoảng bạn rời bàn đi một vòng văn phòng · bấm vào chó, mèo, chuột để nghe chúng kêu'));
- if(free.length>5)lg.append(el('span',null,'Rảnh, không hiện hết: '+free.slice(5).map(a=>a.id).join(', ')));
+ if(free.length>CAP)lg.append(el('span',null,'Rảnh, không hiện hết: '+free.slice(CAP).map(a=>a.id).join(', ')));
 }
 
 /* ---------- chó, mèo, chuột chạy khắp văn phòng ---------- */
@@ -849,7 +945,7 @@ function build(){
 // Chó đi dạo, thỉnh thoảng ra ngồi cạnh bàn bạn hay về ổ ngủ. Chuột chui ra từ lỗ chân tường chạy một vòng rồi về,
 // mèo rượt theo; chuột về lỗ thì mèo ngồi canh. Chó đi sát mèo thì mèo giật mình nhảy lên rồi bỏ chạy.
 // Lớp #pets riêng, không bị thay khi trang làm mới 3 giây.
-const XL=16,XR=OWNER_X,BASE_Y=124,q4=v=>Math.round(v/4)*4;
+const XL=16,BASE_Y=124,LV=-20,LL=-LW+16,q4=v=>Math.round(v/4)*4;let XR=676;
 let G=null,GSIG='',HOLE='',GUARD='',BED='',SPOT='';const CRIT={};
 // Bạn (chủ dự án) thỉnh thoảng rời bàn đi một vòng: dừng ở vài chỗ nói một câu, chó có khi lẽo đẽo theo, rồi về bàn
 const BOSS_L={hair:'#2d2d3a',skin:'#f5cfa6',style:'short',pants:'#3a3f5c'};
@@ -874,8 +970,8 @@ const dist=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
 const goTo=(a,id)=>{a.path=route(nodeAt(a.x,a.y),id)};
 // Chỗ xa con vật a nhất trong vài điểm bốc ngẫu nhiên (để mèo chạy trốn)
 const farNode=a=>{let b=randNode();for(let i=0;i<6;i++){const k=randNode();if(dist(G.get(k),a)>dist(G.get(b),a))b=k}return b};
-function setGraph(g,laneB){
- G=g;HOLE=HOLE_X+','+BASE_Y;GUARD=(HOLE_X+16)+','+BASE_Y;BED=BED_X+','+laneB;SPOT=XR+','+BASE_Y;
+function setGraph(g,bed){
+ G=g;HOLE=HOLE_X+','+BASE_Y;GUARD=(HOLE_X+16)+','+BASE_Y;BED=bed;SPOT=XR+','+BASE_Y;
  const at=id=>G.get(id);
  if(!CRIT.dog){
   const c=at(randNode());
@@ -1096,4 +1192,6 @@ async function poll(){
  catch(e){const c=$('#bConn');c.textContent='MẤT KẾT NỐI';c.className='badge off'}
 }
 poll();setInterval(poll,3000);
+// Đổi cỡ cửa sổ: xếp lại văn phòng (số bàn mỗi hàng, có hay không cột phòng chờ)
+let resizeT=0;window.addEventListener('resize',()=>{clearTimeout(resizeT);resizeT=setTimeout(()=>{if(S)build()},200)});
 </script></body></html>`;
