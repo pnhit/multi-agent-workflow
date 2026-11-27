@@ -256,7 +256,7 @@ function state() {
     for (const m of f.members) if (byId[m]) byId[m].features.push(f.id); else unknown.add(m);
   }
   return {
-    project: DEMO ? 'XEM THỬ (dữ liệu giả)' : path.basename(ROOT), now: new Date().toISOString(), demo: DEMO,
+    project: DEMO ? 'XEM THỬ (dữ liệu giả)' : path.basename(ROOT), now: new Date().toISOString(), demo: DEMO, v: PAGE_V,
     hasWorkflow: isDir(W), agents, features, owner, unknown: [...unknown], masters, watch: readWatch(),
     // Do watch.sh ghi mỗi lần quét (việc không ai cầm, status/to lệch, thiếu Nguồn:, chờ quá lâu)
     anomalies: read(path.join(W, '.run', 'lint.txt')).split(/\r?\n/).filter(Boolean).map(s => s.replace(/`/g, '')),
@@ -1435,8 +1435,12 @@ function keepScroll(fn){
   const r=e.getBoundingClientRect();if(r.height>0&&r.bottom>0){anc=e;top=r.top;break}}
  fn();
  if(anc){const d=anc.getBoundingClientRect().top-top;if(Math.abs(d)>.5)window.scrollBy(0,d)}}
+let PAGE_V0='';
 async function poll(){
- try{const r=await fetch('/api/state',{cache:'no-store'});S=await r.json();const c=$('#bConn');c.textContent='CẬP NHẬT '+new Date().toLocaleTimeString();c.className='badge';keepScroll(render)}
+ try{const r=await fetch('/api/state',{cache:'no-store'}),st=await r.json();
+  // monitor vừa được nạp bản mới (giao diện khác bản đang mở): tải lại trang để dùng giao diện mới
+  if(st.v){if(!PAGE_V0)PAGE_V0=st.v;else if(st.v!==PAGE_V0){location.reload();return}}
+  S=st;const c=$('#bConn');c.textContent='CẬP NHẬT '+new Date().toLocaleTimeString();c.className='badge';keepScroll(render)}
  catch(e){const c=$('#bConn');c.textContent='MẤT KẾT NỐI';c.className='badge off'}
 }
 poll();setInterval(poll,3000);
@@ -1447,3 +1451,5 @@ function setHelp(open){$('#help').hidden=!open;$('#bHelp').setAttribute('aria-ex
 $('#bHelp').addEventListener('click',()=>setHelp($('#help').hidden));$('#helpClose').addEventListener('click',()=>setHelp(false));
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#help').hidden)setHelp(false)});
 </script></body></html>`;
+// Phiên bản giao diện: monitor.js đổi (watch.sh nạp lại bản mới) thì tab đang mở thấy v khác và tự tải lại trang
+const PAGE_V = crypto.createHash('sha1').update(PAGE).digest('hex').slice(0, 12);
