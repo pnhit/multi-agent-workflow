@@ -31,11 +31,11 @@ Hook chặn (`starter-kit/workflow/hooks/guard-root.cjs`) là một file cho m�
 
 ## Cài
 
-Thay `<chủ>/<repo>` bằng repo trên GitHub, `0.4.0` bằng bản muốn dùng.
+Thay `<chủ>/<repo>` bằng repo trên GitHub, `0.5.0` bằng bản muốn dùng.
 
 **Claude Code** (trong phiên, hay `claude plugin …` ở dòng lệnh):
 ```
-/plugin marketplace add <chủ>/<repo>#v0.4.0
+/plugin marketplace add <chủ>/<repo>#v0.5.0
 /plugin install workflow@multi-agent-workflow
 ```
 - Có `#v<bản>`: ghim bản đó. Lên bản mới thì gỡ marketplace rồi thêm lại với tag mới.
@@ -43,14 +43,14 @@ Thay `<chủ>/<repo>` bằng repo trên GitHub, `0.4.0` bằng bản muốn dùn
 
 **Gemini CLI**: extension phải nằm ở gốc của commit được cài, nên mỗi bản có một commit riêng trên nhánh `gemini-extension` (do `release.mjs` dựng):
 ```
-gemini extensions install https://github.com/<chủ>/<repo> --ref gemini-v0.4.0
+gemini extensions install https://github.com/<chủ>/<repo> --ref gemini-v0.5.0
 gemini extensions install https://github.com/<chủ>/<repo> --ref gemini-extension --auto-update
 ```
 Dòng đầu ghim bản; dòng sau luôn lấy bản mới nhất. Thử bản chưa phát hành: `gemini extensions link <bản clone>/plugin/dist/gemini`.
 
 **Antigravity**: tài liệu chưa có cách chọn tag hay thư mục con khi cài từ GitHub, nên cài từ một bản clone:
 ```
-git clone --depth 1 --branch v0.4.0 https://github.com/<chủ>/<repo> workflow-plugin-src
+git clone --depth 1 --branch v0.5.0 https://github.com/<chủ>/<repo> workflow-plugin-src
 agy plugin install workflow-plugin-src/plugin/dist/antigravity
 ```
 Ứng dụng Antigravity (không dùng `agy`): chép thư mục `plugin/dist/antigravity` thành `~/.gemini/config/plugins/workflow` (mọi dự án) hoặc `<dự án>/.agents/plugins/workflow` (một dự án). Kiểm lại đường dẫn theo tài liệu của bản Antigravity đang dùng.
@@ -59,7 +59,7 @@ agy plugin install workflow-plugin-src/plugin/dist/antigravity
 
 1. Tăng `plugin/VERSION` (cùng số với tag phát hành của repo: `v0.3.0`, `v0.4.0`…), chạy `node plugin/build.mjs`, commit lên `main`.
 2. `node plugin/release.mjs -m "<ghi chú ngắn>"` (thêm `--dry-run` để xem trước). Script kiểm cây làm việc sạch, đang ở `main`, `dist/` khớp nguồn, test xanh; rồi tạo **ở máy** tag `v<bản>`, commit mới trên nhánh `gemini-extension` và tag nhẹ `gemini-v<bản>`.
-3. Script **không push**. Chủ dự án tự chạy lệnh nó in ra, dạng `git push origin main v0.4.0 gemini-extension gemini-v0.4.0`.
+3. Script **không push**. Chủ dự án tự chạy lệnh nó in ra, dạng `git push origin main v0.5.0 gemini-extension gemini-v0.5.0`.
 
 Nhánh `gemini-extension` chỉ do script ghi: đừng sửa tay, đừng gộp vào `main`. Antigravity cài từ tag `v<bản>` (bản clone), không cần nhánh riêng.
 
